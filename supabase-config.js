@@ -250,11 +250,15 @@ const supabaseAuth = {
                 .select('*')
                 .order('name');
             
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase error when getting parents:', error);
+                throw error;
+            }
             return data || [];
         } catch (error) {
             console.error('Error getting parents:', error);
-            throw error;
+            // Return empty array instead of propagating the error to prevent dashboard from breaking
+            return [];
         }
     },
 

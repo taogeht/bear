@@ -396,21 +396,32 @@
                         .select();
                     
                     if (error) {
+                        console.error('Error inserting parent:', error);
                         throw error;
                     }
                     
-                    // Show success and reload parents
+                    // Show success message
                     showSuccess(`Parent "${name}" added successfully`);
-                    await loadParents();
                     
                     // Close modal and reset form
                     modal.style.display = 'none';
                     addParentForm.reset();
                     
+                    // Give database a moment to complete the transaction
+                    setTimeout(async () => {
+                        try {
+                            // Then reload the parent list
+                            await loadParents();
+                        } catch (loadError) {
+                            console.error('Error reloading parents after adding new parent:', loadError);
+                        } finally {
+                            showLoading(false);
+                        }
+                    }, 500);
+                    
                 } catch (error) {
                     console.error('Error adding parent:', error);
                     showModalError('Error adding parent: ' + (error.message || 'Unknown error'));
-                } finally {
                     showLoading(false);
                 }
             });
@@ -445,89 +456,94 @@
                 
                 // Process each parent
                 for (const parent of parents) {
-                    // Get form status for this week
-                    const formStatus = await getFormStatus(parent.id);
-                    
-                    // Create parent card
-                    const parentCard = document.createElement('div');
-                    parentCard.className = 'parent-card';
-                    
-                    // Create parent info section
-                    const parentInfo = document.createElement('div');
-                    parentInfo.className = 'parent-info';
-                    
-                    // Create parent name with status
-                    const nameDiv = document.createElement('div');
-                    nameDiv.className = 'parent-name';
-                    nameDiv.textContent = parent.name;
-                    
-                    // Add status indicator
-                    const statusSpan = document.createElement('span');
-                    statusSpan.className = 'form-status';
-                    
-                    if (formStatus.submitted) {
-                        if (formStatus.teacherUpdated) {
-                            statusSpan.textContent = 'Completed';
-                            statusSpan.classList.add('status-completed');
+                    try {
+                        // Get form status for this week
+                        const formStatus = await getFormStatus(parent.id);
+                        
+                        // Create parent card
+                        const parentCard = document.createElement('div');
+                        parentCard.className = 'parent-card';
+                        
+                        // Create parent info section
+                        const parentInfo = document.createElement('div');
+                        parentInfo.className = 'parent-info';
+                        
+                        // Create parent name with status
+                        const nameDiv = document.createElement('div');
+                        nameDiv.className = 'parent-name';
+                        nameDiv.textContent = parent.name;
+                        
+                        // Add status indicator
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = 'form-status';
+                        
+                        if (formStatus.submitted) {
+                            if (formStatus.teacherUpdated) {
+                                statusSpan.textContent = 'Completed';
+                                statusSpan.classList.add('status-completed');
+                            } else {
+                                statusSpan.textContent = 'Parent Submitted';
+                                statusSpan.classList.add('status-pending');
+                            }
                         } else {
-                            statusSpan.textContent = 'Parent Submitted';
-                            statusSpan.classList.add('status-pending');
+                            statusSpan.textContent = 'Not Started';
+                            statusSpan.classList.add('status-not-started');
                         }
-                    } else {
-                        statusSpan.textContent = 'Not Started';
-                        statusSpan.classList.add('status-not-started');
+                        
+                        nameDiv.appendChild(statusSpan);
+                        
+                        // Create parent email and phone info
+                        const contactInfoDiv = document.createElement('div');
+                        contactInfoDiv.className = 'parent-email';
+                        
+                        if (parent.email) {
+                            contactInfoDiv.textContent = parent.email;
+                        } else {
+                            contactInfoDiv.textContent = 'No email provided';
+                        }
+                        
+                        if (parent.phone) {
+                            contactInfoDiv.textContent += ' | ' + parent.phone;
+                        }
+                        
+                        // Add parent info elements to parent info
+                        parentInfo.appendChild(nameDiv);
+                        parentInfo.appendChild(contactInfoDiv);
+                        
+                        // Create action buttons
+                        const actionButtons = document.createElement('div');
+                        actionButtons.className = 'action-buttons';
+                        
+                        // Create fill form button
+                        const fillFormButton = document.createElement('button');
+                        fillFormButton.className = 'btn btn-primary';
+                        fillFormButton.textContent = 'Edit Form';
+                        fillFormButton.onclick = function() {
+                            editParentForm(parent.id, parent.name);
+                        };
+                        
+                        // Create view details button
+                        const viewDetailsButton = document.createElement('button');
+                        viewDetailsButton.className = 'btn btn-secondary';
+                        viewDetailsButton.textContent = 'View History';
+                        viewDetailsButton.onclick = function() {
+                            viewFormHistory(parent.id, parent.name);
+                        };
+                        
+                        // Add buttons to action buttons
+                        actionButtons.appendChild(fillFormButton);
+                        actionButtons.appendChild(viewDetailsButton);
+                        
+                        // Add all elements to parent card
+                        parentCard.appendChild(parentInfo);
+                        parentCard.appendChild(actionButtons);
+                        
+                        // Add parent card to parent list
+                        parentListElement.appendChild(parentCard);
+                    } catch (parentError) {
+                        console.error('Error processing parent:', parent.name, parentError);
+                        // Continue with next parent instead of failing the entire operation
                     }
-                    
-                    nameDiv.appendChild(statusSpan);
-                    
-                    // Create parent email and phone info
-                    const contactInfoDiv = document.createElement('div');
-                    contactInfoDiv.className = 'parent-email';
-                    
-                    if (parent.email) {
-                        contactInfoDiv.textContent = parent.email;
-                    } else {
-                        contactInfoDiv.textContent = 'No email provided';
-                    }
-                    
-                    if (parent.phone) {
-                        contactInfoDiv.textContent += ' | ' + parent.phone;
-                    }
-                    
-                    // Add parent info elements to parent info
-                    parentInfo.appendChild(nameDiv);
-                    parentInfo.appendChild(contactInfoDiv);
-                    
-                    // Create action buttons
-                    const actionButtons = document.createElement('div');
-                    actionButtons.className = 'action-buttons';
-                    
-                    // Create fill form button
-                    const fillFormButton = document.createElement('button');
-                    fillFormButton.className = 'btn btn-primary';
-                    fillFormButton.textContent = 'Edit Form';
-                    fillFormButton.onclick = function() {
-                        editParentForm(parent.id, parent.name);
-                    };
-                    
-                    // Create view details button
-                    const viewDetailsButton = document.createElement('button');
-                    viewDetailsButton.className = 'btn btn-secondary';
-                    viewDetailsButton.textContent = 'View History';
-                    viewDetailsButton.onclick = function() {
-                        viewFormHistory(parent.id, parent.name);
-                    };
-                    
-                    // Add buttons to action buttons
-                    actionButtons.appendChild(fillFormButton);
-                    actionButtons.appendChild(viewDetailsButton);
-                    
-                    // Add all elements to parent card
-                    parentCard.appendChild(parentInfo);
-                    parentCard.appendChild(actionButtons);
-                    
-                    // Add parent card to parent list
-                    parentListElement.appendChild(parentCard);
                 }
                 
             } catch (error) {
@@ -550,7 +566,8 @@
                     teacherUpdated: form.teacherComments ? true : false 
                 };
             } catch (error) {
-                console.error('Error getting form status:', error);
+                console.error('Error getting form status for parent ID:', parentId, error);
+                // Return default status on error instead of propagating the error
                 return { submitted: false, teacherUpdated: false };
             }
         }
