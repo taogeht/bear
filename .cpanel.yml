@@ -1,0 +1,7 @@
+deployment:
+  tasks:
+    - echo "Pulling latest changes..."
+    - git pull origin main
+    - echo "Deploying to public_html..."
+    - /bin/cp -R * /home/bryce603/brycecodes.com/bear 
+
