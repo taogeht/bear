@@ -431,20 +431,31 @@
                 }
                 
                 // Set parent name
-                document.getElementById('parent-name').textContent = parentName;
+                const parentNameElement = document.getElementById('parent-name');
+                if (parentNameElement) {
+                    parentNameElement.textContent = parentName;
+                } else {
+                    console.error('Parent name element not found');
+                }
                 
                 // Load weeks with form data
                 await loadFormWeeks();
                 
                 // Handle week selection change
-                document.getElementById('week-select').addEventListener('change', function(e) {
-                    const selectedWeek = e.target.value;
-                    if (selectedWeek) {
-                        loadFormForWeek(selectedWeek);
-                    } else {
-                        hideFormContent();
-                    }
-                });
+                const weekSelect = document.getElementById('week-select');
+                if (weekSelect) {
+                    weekSelect.addEventListener('change', function(e) {
+                        const selectedWeek = e.target.value;
+                        if (selectedWeek) {
+                            loadFormForWeek(selectedWeek);
+                        } else {
+                            hideFormContent();
+                        }
+                    });
+                } else {
+                    console.error('Week select element not found in DOMContentLoaded');
+                    showError('Week select element not found. Please refresh the page.');
+                }
                 
             } catch (error) {
                 console.error('Error initializing history view:', error);
@@ -467,6 +478,13 @@
                 if (error) throw error;
                 
                 const weekSelect = document.getElementById('week-select');
+                if (!weekSelect) {
+                    console.error('Week select element not found');
+                    showError('Week select element not found. Please refresh the page.');
+                    showLoading(false);
+                    return;
+                }
+                
                 weekSelect.innerHTML = '';
                 
                 // Check user type for language
@@ -557,16 +575,36 @@
         
         // Display form data
         function displayFormData(formData) {
+            // Ensure formData is valid
+            if (!formData) {
+                console.error('No form data provided to display');
+                showError('Form data is missing or invalid');
+                return;
+            }
+            
+            // Get elements and check they exist
+            const formContentElement = document.getElementById('form-content');
+            const noFormMessageElement = document.getElementById('no-form-message');
+            const formDateElement = document.getElementById('form-date');
+            
+            if (!formContentElement || !noFormMessageElement) {
+                console.error('Required form content elements not found');
+                showError('Error displaying form data. Some elements are missing.');
+                return;
+            }
+            
             // Show form content
-            document.getElementById('form-content').style.display = 'block';
-            document.getElementById('no-form-message').style.display = 'none';
+            formContentElement.style.display = 'block';
+            noFormMessageElement.style.display = 'none';
             
             // Format and display date
             const dateStr = formData.year && formData.month && formData.day 
                 ? `${formData.year}-${formData.month}-${formData.day}`
                 : formData.week_start;
             
-            document.getElementById('form-date').textContent = formatDate(dateStr);
+            if (formDateElement) {
+                formDateElement.textContent = formatDate(dateStr);
+            }
             
             // Check user type for language
             const session = supabaseAuth.getSession();
@@ -614,30 +652,52 @@
                 return ratingMap[rating] || notProvidedText;
             }
             
-            // Display all form data with consistent language
-            document.getElementById('teacher-mood').textContent = formData.teacherMood ? getMoodEmoji(formData.teacherMood) : notProvidedText;
-            document.getElementById('weekly-song').textContent = formData.weeklySong || notProvidedText;
-            document.getElementById('video-homework').textContent = formData.videoHomework || notProvidedText;
-            document.getElementById('weekly-homework').textContent = formData.weeklyHomework || notProvidedText;
-            document.getElementById('life-homework').textContent = formData.lifeHomework || notProvidedText;
-            document.getElementById('practice-content').textContent = formData.practiceContent || notProvidedText;
-            document.getElementById('teacher-comments').textContent = formData.teacherComments || notProvidedText;
+            // Helper function to safely set element text content
+            function safelySetTextContent(elementId, value) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = value;
+                } else {
+                    console.warn(`Element with ID ${elementId} not found`);
+                }
+            }
             
-            document.getElementById('sleep-time').textContent = formData.sleepTime || notProvidedText;
-            document.getElementById('help-needed').textContent = formData.helpNeeded || notProvidedText;
-            document.getElementById('breakfast').textContent = formData.breakfast ? getRatingEmoji(formData.breakfast) : notProvidedText;
-            document.getElementById('watch').textContent = formData.watch ? getRatingEmoji(formData.watch) : notProvidedText;
-            document.getElementById('watch2').textContent = formData.watch2 ? getRatingEmoji(formData.watch2) : notProvidedText;
-            document.getElementById('todo').textContent = formData.todo ? getRatingEmoji(formData.todo) : notProvidedText;
-            document.getElementById('todo2').textContent = formData.todo2 ? getRatingEmoji(formData.todo2) : notProvidedText;
-            document.getElementById('parent-share').textContent = formData.parentShare || notProvidedText;
-            document.getElementById('parent-comments').textContent = formData.parentComments || notProvidedText;
+            // Display all form data with consistent language
+            safelySetTextContent('teacher-mood', formData.teacherMood ? getMoodEmoji(formData.teacherMood) : notProvidedText);
+            safelySetTextContent('weekly-song', formData.weeklySong || notProvidedText);
+            safelySetTextContent('video-homework', formData.videoHomework || notProvidedText);
+            safelySetTextContent('weekly-homework', formData.weeklyHomework || notProvidedText);
+            safelySetTextContent('life-homework', formData.lifeHomework || notProvidedText);
+            safelySetTextContent('practice-content', formData.practiceContent || notProvidedText);
+            safelySetTextContent('teacher-comments', formData.teacherComments || notProvidedText);
+            
+            safelySetTextContent('sleep-time', formData.sleepTime || notProvidedText);
+            safelySetTextContent('help-needed', formData.helpNeeded || notProvidedText);
+            safelySetTextContent('breakfast', formData.breakfast ? getRatingEmoji(formData.breakfast) : notProvidedText);
+            safelySetTextContent('watch', formData.watch ? getRatingEmoji(formData.watch) : notProvidedText);
+            safelySetTextContent('watch2', formData.watch2 ? getRatingEmoji(formData.watch2) : notProvidedText);
+            safelySetTextContent('todo', formData.todo ? getRatingEmoji(formData.todo) : notProvidedText);
+            safelySetTextContent('todo2', formData.todo2 ? getRatingEmoji(formData.todo2) : notProvidedText);
+            safelySetTextContent('parent-share', formData.parentShare || notProvidedText);
+            safelySetTextContent('parent-comments', formData.parentComments || notProvidedText);
         }
         
         // Hide form content
         function hideFormContent() {
-            document.getElementById('form-content').style.display = 'none';
-            document.getElementById('no-form-message').style.display = 'block';
+            const formContentElement = document.getElementById('form-content');
+            const noFormMessageElement = document.getElementById('no-form-message');
+            
+            if (formContentElement) {
+                formContentElement.style.display = 'none';
+            } else {
+                console.warn('form-content element not found');
+            }
+            
+            if (noFormMessageElement) {
+                noFormMessageElement.style.display = 'block';
+            } else {
+                console.warn('no-form-message element not found');
+            }
         }
         
         // Format date helper
@@ -688,12 +748,22 @@
         
         // Show loading indicator
         function showLoading(show) {
-            document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+            const loadingElement = document.getElementById('loading-overlay');
+            if (loadingElement) {
+                loadingElement.style.display = show ? 'flex' : 'none';
+            } else {
+                console.warn('Loading overlay element not found');
+            }
         }
         
         // Show error message
         function showError(message) {
             const errorElement = document.getElementById('error-message');
+            if (!errorElement) {
+                console.error('Error element not found in the DOM');
+                return;
+            }
+            
             const session = supabaseAuth.getSession();
             const isParent = session && session.userType === 'parent';
             
@@ -719,7 +789,9 @@
             
             // Hide after 5 seconds
             setTimeout(function() {
-                errorElement.style.display = 'none';
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
             }, 5000);
         }
     </script>

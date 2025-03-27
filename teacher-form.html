@@ -185,6 +185,15 @@
             background-color: #757575;
             color: white;
         }
+        .view-history-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            background-color: #2196F3;
+            color: white;
+        }
         .loading-overlay {
             position: fixed;
             top: 0;
@@ -237,6 +246,7 @@
         <div class="nav-title">Weekly Communication Form</div>
         <div class="nav-buttons">
             <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="view-history-btn" onclick="viewFormHistory()">View History</button>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </div>
@@ -656,6 +666,21 @@
             setTimeout(function() {
                 successElement.style.display = 'none';
             }, 5000);
+        }
+        
+        // View form history function
+        function viewFormHistory() {
+            if (!parentId) {
+                showError('No parent selected. Please go back and select a parent.');
+                return;
+            }
+            
+            // Store parent info for the history page
+            sessionStorage.setItem('viewingParentId', parentId);
+            sessionStorage.setItem('viewingParentName', document.getElementById('parent-name').textContent);
+            
+            // Redirect to form history page
+            window.location.href = 'form-history.html';
         }
         
         // Get Supabase client

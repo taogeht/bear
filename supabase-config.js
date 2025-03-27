@@ -2,13 +2,22 @@
 const SUPABASE_URL = 'https://dpaqeqosxerbfxldwlvq.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwYXFlcW9zeGVyYmZ4bGR3bHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMwMjcwNTYsImV4cCI6MjA1ODYwMzA1Nn0.1NvhcmGd0zzGwkZ_UkECM5vJWLQeXaC2Jb6y3K2kx94';
 
+// Create a single global instance of the Supabase client
+let supabaseClientInstance = null;
+
 // Authentication and Database Functions
 const supabaseAuth = {
-    // Initialize Supabase client
+    // Initialize Supabase client using a singleton pattern
     getSupabaseClient: async function() {
-        // Use the global supabase object provided by the CDN
+        // If we already have an instance, return it
+        if (supabaseClientInstance) {
+            return supabaseClientInstance;
+        }
+        
+        // Create a new instance if we don't have one yet
         if (typeof supabase !== 'undefined') {
-            return supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            supabaseClientInstance = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            return supabaseClientInstance;
         } else {
             console.error('Supabase is not defined. Make sure to include the Supabase JS library.');
             throw new Error('Supabase client not available');
@@ -497,12 +506,62 @@ const supabaseAuth = {
             console.error('Error getting form by ID:', error);
             throw error;
         }
-    }
+    },
+
+    // Add a new function to delete a parent and all associated forms
+    deleteParent: async function(parentId) {
+        if (!parentId) throw new Error('Parent ID is required');
+        
+        try {
+            // Get Supabase client
+            const supabase = await this.getSupabaseClient();
+            
+            console.log(`Starting deletion process for parent ID: ${parentId}`);
+            
+            // First, delete all forms associated with this parent
+            console.log(`Deleting forms for parent ID: ${parentId}`);
+            const { error: formsError } = await supabase
+                .from('forms')
+                .delete()
+                .eq('parent_id', parentId);
+            
+            if (formsError) {
+                console.error('Error deleting forms:', formsError);
+                // Continue with parent deletion even if form deletion fails
+            } else {
+                console.log(`Successfully deleted forms for parent ID: ${parentId}`);
+            }
+            
+            // Then delete the parent
+            console.log(`Deleting parent with ID: ${parentId}`);
+            const { error: parentError } = await supabase
+                .from('parents')
+                .delete()
+                .eq('id', parentId);
+            
+            if (parentError) {
+                console.error('Error deleting parent:', parentError);
+                throw parentError;
+            }
+            
+            console.log(`Successfully deleted parent with ID: ${parentId}`);
+            return { success: true };
+        } catch (error) {
+            console.error('Error in deleteParent function:', error);
+            throw error;
+        }
+    },
 };
 
-// Create a global Supabase instance for direct use
+// Set up the global Supabase instance
 try {
-    window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Use the singleton pattern to get or create the instance
+    if (!supabaseClientInstance && typeof supabase !== 'undefined') {
+        supabaseClientInstance = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+    
+    // Make it available globally
+    window.supabaseClient = supabaseClientInstance;
 } catch (error) {
     console.error('Failed to initialize Supabase client:', error);
 }

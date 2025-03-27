@@ -279,6 +279,25 @@
         </div>
     </div>
 
+    <!-- Delete Parent Confirmation Modal -->
+    <div id="deleteParentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirm Deletion</h2>
+                <span class="close" id="closeDeleteModal">&times;</span>
+            </div>
+            <div id="delete-modal-message" class="error-message"></div>
+            <div class="confirm-delete-message">
+                <p>Are you sure you want to remove this parent? This action cannot be undone.</p>
+                <p><strong>Parent: </strong><span id="delete-parent-name"></span></p>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button class="btn" style="background-color: #757575; color: white;" id="cancel-delete-btn">Cancel</button>
+                <button class="btn" style="background-color: #f44336; color: white;" id="confirm-delete-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <div class="header">
         <h1>Teacher Dashboard</h1>
         <div class="top-buttons">
@@ -305,6 +324,10 @@
     </div>
 
     <script>
+        // Global variables
+        let parentToDeleteId = null;
+        let parentToDeleteName = null;
+        
         // Check authentication on page load
         document.addEventListener('DOMContentLoaded', async function() {
             try {
@@ -343,6 +366,64 @@
             const closeModalBtn = document.getElementById('closeModal');
             const addParentForm = document.getElementById('add-parent-form');
             
+            // Setup delete confirmation modal
+            const deleteModal = document.getElementById('deleteParentModal');
+            const closeDeleteModalBtn = document.getElementById('closeDeleteModal');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            
+            // Close delete modal
+            function closeDeleteModal() {
+                deleteModal.style.display = 'none';
+                document.getElementById('delete-modal-message').style.display = 'none';
+                parentToDeleteId = null;
+                parentToDeleteName = null;
+            }
+            
+            // Close delete modal when X is clicked
+            closeDeleteModalBtn.onclick = closeDeleteModal;
+            
+            // Close delete modal when Cancel is clicked
+            cancelDeleteBtn.onclick = closeDeleteModal;
+            
+            // Handle delete confirmation
+            confirmDeleteBtn.onclick = async function() {
+                if (!parentToDeleteId) return;
+                
+                try {
+                    showLoading(true);
+                    
+                    // Log the parent ID we're attempting to delete
+                    console.log('Attempting to delete parent with ID:', parentToDeleteId);
+                    
+                    // Use the new deleteParent function which handles form deletions first
+                    const result = await supabaseAuth.deleteParent(parentToDeleteId);
+                    
+                    // Close the modal
+                    closeDeleteModal();
+                    
+                    // Show success message
+                    showSuccess(`Parent "${parentToDeleteName}" has been removed`);
+                    
+                    // Reload the parent list
+                    setTimeout(async () => {
+                        try {
+                            await loadParents();
+                        } catch (loadError) {
+                            console.error('Error reloading parents after deletion:', loadError);
+                        } finally {
+                            showLoading(false);
+                        }
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.error('Error deleting parent:', error);
+                    document.getElementById('delete-modal-message').textContent = 'Error removing parent: ' + (error.message || 'Unknown error');
+                    document.getElementById('delete-modal-message').style.display = 'block';
+                    showLoading(false);
+                }
+            };
+            
             // Open modal
             openModalBtn.onclick = function() {
                 modal.style.display = 'block';
@@ -361,6 +442,10 @@
                     modal.style.display = 'none';
                     document.getElementById('modal-error-message').style.display = 'none';
                     addParentForm.reset();
+                }
+                
+                if (event.target === deleteModal) {
+                    closeDeleteModal();
                 }
             };
             
@@ -417,7 +502,7 @@
                         } finally {
                             showLoading(false);
                         }
-                    }, 500);
+                    }, 1000);
                     
                 } catch (error) {
                     console.error('Error adding parent:', error);
@@ -437,19 +522,34 @@
         // Load all parents
         async function loadParents() {
             try {
+                console.log('Starting loadParents function');
+                
                 const parentListElement = document.getElementById('parent-list');
                 const emptyStateElement = document.getElementById('empty-state');
                 
+                // Check if elements exist
+                if (!parentListElement) {
+                    console.error('Could not find parent-list element');
+                    return;
+                }
+                
                 // Get all parents
+                console.log('Fetching parents from Supabase');
                 const parents = await supabaseAuth.getParents();
                 
+                console.log(`Found ${parents.length} parents`);
+                
                 if (parents.length === 0) {
-                    emptyStateElement.textContent = 'No parents found in the system.';
+                    if (emptyStateElement) {
+                        emptyStateElement.textContent = 'No parents found in the system.';
+                    }
                     return;
                 }
                 
                 // Clear empty state
-                emptyStateElement.style.display = 'none';
+                if (emptyStateElement) {
+                    emptyStateElement.style.display = 'none';
+                }
                 
                 // Clear existing parent list
                 parentListElement.innerHTML = '';
@@ -457,6 +557,8 @@
                 // Process each parent
                 for (const parent of parents) {
                     try {
+                        console.log(`Processing parent: ${parent.name} (${parent.id})`);
+                        
                         // Get form status for this week
                         const formStatus = await getFormStatus(parent.id);
                         
@@ -522,6 +624,16 @@
                             editParentForm(parent.id, parent.name);
                         };
                         
+                        // Create remove button
+                        const removeButton = document.createElement('button');
+                        removeButton.className = 'btn';
+                        removeButton.style.backgroundColor = '#f44336';
+                        removeButton.style.color = 'white';
+                        removeButton.textContent = 'Remove';
+                        removeButton.onclick = function() {
+                            showDeleteConfirmation(parent.id, parent.name);
+                        };
+                        
                         // Create view details button
                         const viewDetailsButton = document.createElement('button');
                         viewDetailsButton.className = 'btn btn-secondary';
@@ -532,6 +644,7 @@
                         
                         // Add buttons to action buttons
                         actionButtons.appendChild(fillFormButton);
+                        actionButtons.appendChild(removeButton);
                         actionButtons.appendChild(viewDetailsButton);
                         
                         // Add all elements to parent card
@@ -554,6 +667,11 @@
         
         // Get form status for parent
         async function getFormStatus(parentId) {
+            if (!parentId) {
+                console.warn('getFormStatus called with null or undefined parentId');
+                return { submitted: false, teacherUpdated: false };
+            }
+            
             try {
                 const form = await supabaseAuth.getParentForm(parentId);
                 
@@ -605,25 +723,52 @@
         // Show error message
         function showError(message) {
             const errorElement = document.getElementById('error-message');
+            if (!errorElement) {
+                console.error('Error message element not found');
+                return;
+            }
+            
             errorElement.textContent = message;
             errorElement.style.display = 'block';
             
             // Hide after 5 seconds
             setTimeout(function() {
-                errorElement.style.display = 'none';
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
             }, 5000);
         }
         
         // Show success message
         function showSuccess(message) {
             const successElement = document.getElementById('success-message');
+            if (!successElement) {
+                console.error('Success message element not found');
+                return;
+            }
+            
             successElement.textContent = message;
             successElement.style.display = 'block';
             
             // Hide after 5 seconds
             setTimeout(function() {
-                successElement.style.display = 'none';
+                if (successElement) {
+                    successElement.style.display = 'none';
+                }
             }, 5000);
+        }
+        
+        // Show delete confirmation modal
+        function showDeleteConfirmation(parentId, parentName) {
+            // Set the parent ID and name to be deleted
+            parentToDeleteId = parentId;
+            parentToDeleteName = parentName;
+            
+            // Update the confirmation message
+            document.getElementById('delete-parent-name').textContent = parentName;
+            
+            // Show the modal
+            document.getElementById('deleteParentModal').style.display = 'block';
         }
     </script>
 </body>
