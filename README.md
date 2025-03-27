@@ -85,15 +85,10 @@ Forms are displayed in a clean, two-column layout showing both teacher and paren
 
 ### Login
 
-The application now supports two methods of login:
+The application now supports one method of login:
 
 1. **Email Login**: The traditional login using email and password
-2. **UUID Login**: Direct login using UUID and password
 
-For UUID-based login:
-- Use the UUID tab on the login screen
-- Enter the UUID: `3e282c5f-8c07-4c3c-9e3b-fcd29a3aba95` (or your specific UUID)
-- Enter the password (default is `password123`)
 
 ### Features
 

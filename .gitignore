@@ -1,0 +1,3 @@
+.cursor/  # Ignores the entire .cursor directory
+*.sql     # Ignores all SQL files
+*.sh      # Ignores all shell script files
