@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parent Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #4a90e2;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .welcome-message {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .top-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .logout-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .form-status {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e0f7fa;
+            border-radius: 4px;
+        }
+        .form-status.pending {
+            background-color: #fff9c4;
+        }
+        .form-status.completed {
+            background-color: #d4edda;
+        }
+        .action-buttons {
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-primary {
+            background-color: #4a90e2;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #757575;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none;
+        }
+        .loading-spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: #e74c3c;
+            background-color: #fadbd8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .success-message {
+            color: #27ae60;
+            background-color: #d4efdf;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="header">
+        <h1>Parent Dashboard</h1>
+        <div class="top-buttons">
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message"></div>
+        
+        <div class="welcome-message">
+            <h2>Welcome, <span id="parent-name">Loading...</span></h2>
+            <p>This is your dashboard for the weekly communication form.</p>
+        </div>
+        
+        <div id="current-week-status" class="form-status">
+            <h3>This week's communication form</h3>
+            <p id="status-message">Loading status...</p>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="btn btn-primary" id="new-form-btn">Submit Weekly Form</button>
+            <button class="btn btn-secondary" id="view-history-btn">View History</button>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                showLoading(true);
+                
+                // Get user session
+                const session = supabaseAuth.getSession();
+                
+                if (!session || session.userType !== 'parent') {
+                    // Not logged in or not a parent, redirect to login
+                    window.location.href = 'parent-login.html';
+                    return;
+                }
+                
+                // Set parent name
+                document.getElementById('parent-name').textContent = session.profile.name || session.profile.email.split('@')[0];
+                
+                // Check if form exists for current week
+                const parentId = session.id;
+                const formData = await supabaseAuth.getParentForm(parentId);
+                
+                // Update status
+                updateFormStatus(formData);
+                
+                // Setup button handlers
+                document.getElementById('new-form-btn').addEventListener('click', function() {
+                    window.location.href = 'parent-form.html';
+                });
+                
+                document.getElementById('view-history-btn').addEventListener('click', function() {
+                    viewFormHistory();
+                });
+                
+                showLoading(false);
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                showError('Error loading dashboard data. Please try again.');
+                showLoading(false);
+            }
+        });
+        
+        // Update form status display
+        function updateFormStatus(formData) {
+            const statusElement = document.getElementById('status-message');
+            const statusContainer = document.getElementById('current-week-status');
+            
+            if (!formData) {
+                statusElement.textContent = 'You have not submitted your form for this week. Please submit it.';
+                statusContainer.classList.add('pending');
+                return;
+            }
+            
+            // Form exists
+            statusContainer.classList.remove('pending');
+            statusContainer.classList.add('completed');
+            
+            // Check if teacher has filled their part
+            if (formData.teacherComments) {
+                statusElement.innerHTML = `
+                    <strong>Status:</strong> Completed by both you and the teacher.<br>
+                    <strong>Last updated:</strong> ${new Date(formData.updated_at).toLocaleString()}<br>
+                    <strong>Teacher comments:</strong> ${formData.teacherComments || 'None'}
+                `;
+            } else {
+                statusElement.innerHTML = `
+                    <strong>Status:</strong> You have submitted your form. Waiting for teacher input.<br>
+                    <strong>Submitted on:</strong> ${new Date(formData.updated_at).toLocaleString()}<br>
+                `;
+            }
+        }
+        
+        // Logout function
+        function logout() {
+            supabaseAuth.logoutUser();
+        }
+        
+        // Show loading indicator
+        function showLoading(show) {
+            document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+        }
+        
+        // Show error message
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            
+            // Hide after 5 seconds
+            setTimeout(function() {
+                errorElement.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            const successElement = document.getElementById('success-message');
+            successElement.textContent = message;
+            successElement.style.display = 'block';
+            
+            // Hide after 5 seconds
+            setTimeout(function() {
+                successElement.style.display = 'none';
+            }, 5000);
+        }
+        
+        // View form history
+        function viewFormHistory() {
+            const session = supabaseAuth.getSession();
+            if (!session) return;
+            
+            // Store parent ID and name in session storage
+            sessionStorage.setItem('viewingParentId', session.id);
+            sessionStorage.setItem('viewingParentName', session.profile.name || session.profile.email || 'Parent');
+            
+            // Redirect to form history page
+            window.location.href = 'form-history.html';
+        }
+    </script>
+</body>
+</html> 

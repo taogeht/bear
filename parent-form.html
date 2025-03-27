@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Communication Form - Parent View</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .nav-banner {
+            background-color: #4a90e2;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #000;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .date {
+            display: flex;
+            text-align: right;
+        }
+        .date span {
+            margin-left: 20px;
+            font-size: 18px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .section {
+            border: 1px solid #000;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        .mood-section, .sleep-section, .breakfast-section {
+            display: flex;
+            flex-direction: column;
+        }
+        .mood-title, .sleep-title, .breakfast-title {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .emoji-row {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 5px;
+        }
+        .emoji {
+            display: inline-block;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            line-height: 30px;
+            cursor: pointer;
+        }
+        .emoji.selected {
+            background-color: #e0f7fa;
+            border-color: #0288d1;
+        }
+        .form-row {
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .rating-scale {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+        .rating {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .rating input {
+            margin-bottom: 5px;
+        }
+        .emoji-rating {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+        .emoji-rating .emoji {
+            margin-left: 5px;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .signature {
+            width: 45%;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #3a7bc8;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .teacher-data {
+            background-color: #f0f8ff;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .logout-btn, .back-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .logout-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .back-btn {
+            background-color: #757575;
+            color: white;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none;
+        }
+        .loading-spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: #e74c3c;
+            background-color: #fadbd8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .success-message {
+            color: #27ae60;
+            background-color: #d4efdf;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <div class="nav-banner">
+        <div class="nav-title">Weekly Communication Form</div>
+        <div class="nav-buttons">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message"></div>
+        
+        <header>
+            <h1>WEEKLY COMMUNICATION</h1>
+            <div class="date">
+                <span>年: <span id="year-display" class="teacher-data">Loading...</span></span>
+                <span>月: <span id="month-display" class="teacher-data">Loading...</span></span>
+                <span>日: <span id="day-display" class="teacher-data">Loading...</span></span>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- Left Side (Teacher's Section) -->
+            <div class="teacher-section">
+                <div class="section mood-section">
+                    <div class="mood-title">我今天的心情：</div>
+                    <div class="teacher-data" id="teacher-mood-display">No data yet</div>
+                </div>
+
+                <div class="section">
+                    <div class="form-row">
+                        <label>每週歌曲：</label>
+                        <div class="teacher-data" id="weekly-song-display">No data yet</div>
+                    </div>
+                    <div class="form-row">
+                        <label>影片作業：</label>
+                        <div class="teacher-data" id="video-homework-display">No data yet</div>
+                    </div>
+                    <div class="form-row">
+                        <label>每週家庭作業：</label>
+                        <div class="teacher-data" id="weekly-homework-display">No data yet</div>
+                    </div>
+                    <div class="form-row">
+                        <label>生活作業：</label>
+                        <div class="teacher-data" id="life-homework-display">No data yet</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="form-row">
+                        <label>今天我練習了什麼？</label>
+                        <div class="teacher-data" id="practice-content-display">No data yet</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="form-row">
+                        <label>老師分享：</label>
+                        <div class="teacher-data" id="teacher-comments-display">No data yet</div>
+                    </div>
+                    <div class="signature">
+                        <p>老師：<span id="teacher-name">Teacher</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side (Parent's Section) -->
+            <div class="parent-section">
+                <div class="section">
+                    <div class="sleep-section">
+                        <div class="sleep-title">我幾點上床睡覺？</div>
+                        <input type="text" id="sleep-time">
+                        <div class="sleep-title">我需要多少幫助才能醒來？</div>
+                        <input type="text" id="help-needed">
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="breakfast-section">
+                        <div class="breakfast-title">我吃了健康的早餐嗎？</div>
+                        <div class="emoji-row">
+                            <span class="emoji breakfast-emoji" data-value="1">😟</span>
+                            <span class="emoji breakfast-emoji" data-value="2">😞</span>
+                            <span class="emoji breakfast-emoji" data-value="3">😐</span>
+                            <span class="emoji breakfast-emoji" data-value="4">🙂</span>
+                            <span class="emoji breakfast-emoji" data-value="5">😄</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="form-row">
+                        <label>這週要觀看的：</label>
+                        <div class="emoji-rating">
+                            <span class="emoji watch-emoji" data-value="1">😞</span>
+                            <span class="emoji watch-emoji" data-value="2">😐</span>
+                            <span class="emoji watch-emoji" data-value="3">😊</span>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label>這週要觀看的：</label>
+                        <div class="emoji-rating">
+                            <span class="emoji watch2-emoji" data-value="1">😞</span>
+                            <span class="emoji watch2-emoji" data-value="2">😐</span>
+                            <span class="emoji watch2-emoji" data-value="3">😊</span>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label>這週要做的事情：</label>
+                        <div class="emoji-rating">
+                            <span class="emoji todo-emoji" data-value="1">😞</span>
+                            <span class="emoji todo-emoji" data-value="2">😐</span>
+                            <span class="emoji todo-emoji" data-value="3">😊</span>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label>這週要做的事情：</label>
+                        <div class="emoji-rating">
+                            <span class="emoji todo2-emoji" data-value="1">😞</span>
+                            <span class="emoji todo2-emoji" data-value="2">😐</span>
+                            <span class="emoji todo2-emoji" data-value="3">😊</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="form-row">
+                        <label>我分享了什麼上課的事情？</label>
+                        <textarea id="parent-share"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <label>家長分享:</label>
+                        <textarea id="parent-comments"></textarea>
+                    </div>
+                    <div class="signature">
+                        <p>家長：<span id="parent-name">Parent</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="submit-btn">Submit Form</button>
+    </div>
+
+    <script>
+        // Global variables
+        let currentForm = null;
+        
+        // Auth check on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                showLoading(true);
+                
+                // Get user session
+                const session = supabaseAuth.getSession();
+                
+                if (!session || session.userType !== 'parent') {
+                    // Not logged in or not a parent, redirect to login
+                    window.location.href = 'parent-login.html';
+                    return;
+                }
+                
+                // Set parent name
+                document.getElementById('parent-name').textContent = session.profile.name || session.profile.email.split('@')[0];
+                
+                // Load existing form data if available
+                await loadFormData(session.id);
+                
+                // Selection of emojis
+                document.querySelectorAll('.emoji').forEach(emoji => {
+                    emoji.addEventListener('click', function() {
+                        // Get the class that identifies which emoji set this belongs to
+                        const classes = this.className.split(' ');
+                        const emojiType = classes.find(cls => cls.includes('-emoji')).replace('-emoji', '');
+                        
+                        // Remove selected class from all emojis in this group
+                        document.querySelectorAll('.' + emojiType + '-emoji').forEach(e => {
+                            e.classList.remove('selected');
+                        });
+                        
+                        // Add selected class to clicked emoji
+                        this.classList.add('selected');
+                    });
+                });
+                
+                // Form submission
+                document.getElementById('submit-btn').addEventListener('click', submitForm);
+                
+                showLoading(false);
+            } catch (error) {
+                console.error('Error initializing form:', error);
+                showError('There was an error loading the form. Please try refreshing the page.');
+                showLoading(false);
+            }
+        });
+        
+        // Load form data from database
+        async function loadFormData(parentId) {
+            try {
+                // Get the current week's form data
+                const formData = await supabaseAuth.getParentForm(parentId);
+                
+                // Store current form
+                currentForm = formData || null;
+                
+                if (formData) {
+                    console.log('Found existing form:', formData);
+                    
+                    // Populate parent fields
+                    document.getElementById('sleep-time').value = formData.sleepTime || '';
+                    document.getElementById('help-needed').value = formData.helpNeeded || '';
+                    document.getElementById('parent-share').value = formData.parentShare || '';
+                    document.getElementById('parent-comments').value = formData.parentComments || '';
+                    
+                    // Select emojis
+                    if (formData.breakfast) {
+                        const breakfastEmoji = document.querySelector(`.breakfast-emoji[data-value="${formData.breakfast}"]`);
+                        if (breakfastEmoji) breakfastEmoji.classList.add('selected');
+                    }
+                    
+                    if (formData.watch) {
+                        const watchEmoji = document.querySelector(`.watch-emoji[data-value="${formData.watch}"]`);
+                        if (watchEmoji) watchEmoji.classList.add('selected');
+                    }
+                    
+                    if (formData.watch2) {
+                        const watch2Emoji = document.querySelector(`.watch2-emoji[data-value="${formData.watch2}"]`);
+                        if (watch2Emoji) watch2Emoji.classList.add('selected');
+                    }
+                    
+                    if (formData.todo) {
+                        const todoEmoji = document.querySelector(`.todo-emoji[data-value="${formData.todo}"]`);
+                        if (todoEmoji) todoEmoji.classList.add('selected');
+                    }
+                    
+                    if (formData.todo2) {
+                        const todo2Emoji = document.querySelector(`.todo2-emoji[data-value="${formData.todo2}"]`);
+                        if (todo2Emoji) todo2Emoji.classList.add('selected');
+                    }
+                    
+                    // Display teacher data if available
+                    displayTeacherData(formData);
+                } else {
+                    console.log('No existing form found, creating new one');
+                }
+            } catch (error) {
+                console.error('Error loading form data:', error);
+                showError('Error loading form data. Please try again.');
+            }
+        }
+        
+        // Display teacher data
+        function displayTeacherData(formData) {
+            // Date
+            document.getElementById('year-display').textContent = formData.year || 'Not provided';
+            document.getElementById('month-display').textContent = formData.month || 'Not provided';
+            document.getElementById('day-display').textContent = formData.day || 'Not provided';
+            
+            // Convert teacher mood to emoji
+            let moodEmoji = 'Not provided';
+            if (formData.teacherMood) {
+                const moodMap = {
+                    '1': '😟',
+                    '2': '😞',
+                    '3': '😐',
+                    '4': '😑',
+                    '5': '🙂',
+                    '6': '😄'
+                };
+                moodEmoji = moodMap[formData.teacherMood] || 'Not provided';
+            }
+            document.getElementById('teacher-mood-display').textContent = moodEmoji;
+            
+            // Other teacher fields
+            document.getElementById('weekly-song-display').textContent = formData.weeklySong || 'Not provided';
+            document.getElementById('video-homework-display').textContent = formData.videoHomework || 'Not provided';
+            document.getElementById('weekly-homework-display').textContent = formData.weeklyHomework || 'Not provided';
+            document.getElementById('life-homework-display').textContent = formData.lifeHomework || 'Not provided';
+            document.getElementById('practice-content-display').textContent = formData.practiceContent || 'Not provided';
+            document.getElementById('teacher-comments-display').textContent = formData.teacherComments || 'Not provided';
+        }
+        
+        // Submit form
+        async function submitForm() {
+            try {
+                showLoading(true);
+                
+                const session = supabaseAuth.getSession();
+                if (!session) {
+                    showError('Your session has expired. Please log in again.');
+                    window.location.href = 'parent-login.html';
+                    return;
+                }
+                
+                const parentId = session.id;
+                console.log('Attempting to submit form for parent ID:', parentId);
+                
+                // Validate parent ID
+                if (!parentId || !parentId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                    console.error('Invalid parent ID format:', parentId);
+                    showError('Invalid session data. Please log in again.');
+                    setTimeout(function() {
+                        window.location.href = 'parent-login.html';
+                    }, 2000);
+                    return;
+                }
+                
+                // Collect data from form
+                const formData = {
+                    sleepTime: document.getElementById('sleep-time').value,
+                    helpNeeded: document.getElementById('help-needed').value,
+                    breakfast: document.querySelector('.breakfast-emoji.selected')?.getAttribute('data-value') || '',
+                    watch: document.querySelector('.watch-emoji.selected')?.getAttribute('data-value') || '',
+                    watch2: document.querySelector('.watch2-emoji.selected')?.getAttribute('data-value') || '',
+                    todo: document.querySelector('.todo-emoji.selected')?.getAttribute('data-value') || '',
+                    todo2: document.querySelector('.todo2-emoji.selected')?.getAttribute('data-value') || '',
+                    parentShare: document.getElementById('parent-share').value,
+                    parentComments: document.getElementById('parent-comments').value
+                };
+                
+                console.log('Form data to be submitted:', formData);
+                
+                // Save to Supabase
+                const result = await supabaseAuth.saveForm(parentId, formData, false);
+                console.log('Form submitted successfully:', result);
+                
+                showSuccess('Form submitted successfully!');
+                
+                // Redirect after a short delay
+                setTimeout(function() {
+                    window.location.href = 'parent-dashboard.html';
+                }, 2000);
+                
+                showLoading(false);
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                showError('Error submitting form: ' + (error.message || 'Unknown error'));
+                showLoading(false);
+            }
+        }
+        
+        // Go back to dashboard
+        function goBack() {
+            window.location.href = 'parent-dashboard.html';
+        }
+        
+        // Logout function
+        function logout() {
+            supabaseAuth.logoutUser();
+        }
+        
+        // Show loading indicator
+        function showLoading(show) {
+            document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+            document.getElementById('submit-btn').disabled = show;
+        }
+        
+        // Show error message
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            
+            // Hide after 5 seconds
+            setTimeout(function() {
+                errorElement.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            const successElement = document.getElementById('success-message');
+            successElement.textContent = message;
+            successElement.style.display = 'block';
+            
+            // Hide after 5 seconds
+            setTimeout(function() {
+                successElement.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html> 
