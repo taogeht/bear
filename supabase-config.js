@@ -60,7 +60,7 @@ const supabaseAuth = {
                 parentData = response.data;
                 parentError = response.error;
             } else {
-                // For single name login, search by name
+                // Search by name
                 const response = await supabase
                     .from('parents')
                     .select('*')
@@ -69,18 +69,6 @@ const supabaseAuth = {
                 
                 parentData = response.data;
                 parentError = response.error;
-                
-                // If no parent found by name, check if it's an email
-                if (!parentData && name.includes('@')) {
-                    const response = await supabase
-                        .from('parents')
-                        .select('*')
-                        .eq('email', name)
-                        .single();
-                    
-                    parentData = response.data;
-                    parentError = response.error;
-                }
             }
             
             if (parentError && parentError.code !== 'PGRST116') {
@@ -102,11 +90,8 @@ const supabaseAuth = {
             // Create user session
             const userSession = {
                 id: parentData.id,
-                email: parentData.email || null,
                 profile: {
-                    name: parentData.name,
-                    email: parentData.email || null,
-                    phone: parentData.phone || null
+                    name: parentData.name
                 },
                 userType: 'parent',
                 expiresAt: new Date().getTime() + (24 * 60 * 60 * 1000) // 24 hours
@@ -300,6 +285,10 @@ const supabaseAuth = {
         try {
             console.log('saveForm called with parentId:', parentId, 'isTeacherForm:', isTeacherForm);
             
+            if (!parentId) {
+                throw new Error('Parent ID is required');
+            }
+            
             const weekStart = this.getWeekStartDate();
             const supabase = await this.getSupabaseClient();
             
@@ -320,7 +309,7 @@ const supabaseAuth = {
                     existingForm = data;
                 } else if (error && error.code !== 'PGRST116') { // PGRST116 is "row not found" error
                     console.error('Error checking for existing form:', error);
-                    throw error;
+                    // Don't throw here, we'll try to create a new form if needed
                 }
             } catch (checkError) {
                 console.log('No existing form found, will create new one');
@@ -342,12 +331,16 @@ const supabaseAuth = {
                 console.log('Adding teacher form fields');
                 
                 // Only include teacher_id if it's a valid teacher in the system
-                const teacherData = await this.validateTeacherId(userId);
-                if (teacherData) {
-                    data.teacher_id = userId;
-                    console.log('Using validated teacher ID:', userId);
+                if (userType === 'teacher' && userId) {
+                    const teacherData = await this.validateTeacherId(userId);
+                    if (teacherData) {
+                        data.teacher_id = userId;
+                        console.log('Using validated teacher ID:', userId);
+                    } else {
+                        console.log('Teacher ID not valid or not found, omitting from form data');
+                    }
                 } else {
-                    console.log('Teacher ID not valid or not found, omitting from form data');
+                    console.log('No teacher ID available or user not a teacher');
                 }
                 
                 // Add the form data fields
@@ -358,7 +351,7 @@ const supabaseAuth = {
                     teacherMood: formData.teacherMood || '',
                     weeklySong: formData.weeklySong || '',
                     videoHomework: formData.videoHomework || '',
-                    weeklyHomework: formData.weeklyHomework || '',
+                    weeklyStorybook: formData.weeklyStorybook || '',
                     lifeHomework: formData.lifeHomework || '',
                     practiceContent: formData.practiceContent || '',
                     teacherComments: formData.teacherComments || ''
@@ -396,7 +389,7 @@ const supabaseAuth = {
                 if (formData.teacherMood) data.teacherMood = formData.teacherMood;
                 if (formData.weeklySong) data.weeklySong = formData.weeklySong;
                 if (formData.videoHomework) data.videoHomework = formData.videoHomework;
-                if (formData.weeklyHomework) data.weeklyHomework = formData.weeklyHomework;
+                if (formData.weeklyStorybook) data.weeklyStorybook = formData.weeklyStorybook;
                 if (formData.lifeHomework) data.lifeHomework = formData.lifeHomework;
                 if (formData.practiceContent) data.practiceContent = formData.practiceContent;
                 if (formData.teacherComments) data.teacherComments = formData.teacherComments;
@@ -408,30 +401,56 @@ const supabaseAuth = {
             if (existingForm) {
                 console.log('Updating existing form with ID:', existingForm.id);
                 // Update existing form
-                const { data: updateData, error: updateError } = await supabase
-                    .from('forms')
-                    .update(data)
-                    .eq('id', existingForm.id)
-                    .select();
-                
-                if (updateError) {
-                    console.error('Error updating form:', updateError);
+                try {
+                    const { data: updateData, error: updateError } = await supabase
+                        .from('forms')
+                        .update(data)
+                        .eq('id', existingForm.id)
+                        .select();
+                    
+                    if (updateError) {
+                        console.error('Error updating form:', updateError);
+                        
+                        // Handle specific database errors
+                        if (updateError.message && updateError.message.includes('column')) {
+                            throw new Error(`Database schema error: ${updateError.message}. Please run the fix-forms-schema.sql script.`);
+                        } else if (updateError.message && updateError.message.includes('foreign key constraint')) {
+                            throw new Error(`Foreign key error: ${updateError.message}. Please check that the teacher ID exists in the database.`);
+                        }
+                        
+                        throw updateError;
+                    }
+                    result = updateData;
+                } catch (updateError) {
+                    console.error('Detailed update error:', updateError);
                     throw updateError;
                 }
-                result = updateData;
             } else {
                 console.log('Inserting new form');
                 // Insert new form
-                const { data: insertData, error: insertError } = await supabase
-                    .from('forms')
-                    .insert(data)
-                    .select();
-                
-                if (insertError) {
-                    console.error('Error inserting form:', insertError);
+                try {
+                    const { data: insertData, error: insertError } = await supabase
+                        .from('forms')
+                        .insert(data)
+                        .select();
+                    
+                    if (insertError) {
+                        console.error('Error inserting form:', insertError);
+                        
+                        // Handle specific database errors
+                        if (insertError.message && insertError.message.includes('column')) {
+                            throw new Error(`Database schema error: ${insertError.message}. Please run the fix-forms-schema.sql script.`);
+                        } else if (insertError.message && insertError.message.includes('foreign key constraint')) {
+                            throw new Error(`Foreign key error: ${insertError.message}. Please check that the teacher ID exists in the database.`);
+                        }
+                        
+                        throw insertError;
+                    }
+                    result = insertData;
+                } catch (insertError) {
+                    console.error('Detailed insert error:', insertError);
                     throw insertError;
                 }
-                result = insertData;
             }
             
             console.log('Form saved successfully:', result);
@@ -444,9 +463,20 @@ const supabaseAuth = {
     
     // Helper to validate if a teacher ID exists in the database
     validateTeacherId: async function(teacherId) {
-        if (!teacherId) return null;
+        if (!teacherId) {
+            console.log('No teacher ID provided for validation');
+            return null;
+        }
+        
+        // Check if ID is a valid UUID
+        const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teacherId);
+        if (!isValidUUID) {
+            console.error('Invalid UUID format for teacher ID:', teacherId);
+            return null;
+        }
         
         try {
+            console.log('Validating teacher ID:', teacherId);
             const supabase = await this.getSupabaseClient();
             const { data, error } = await supabase
                 .from('teachers')
@@ -456,12 +486,23 @@ const supabaseAuth = {
                 
             if (error) {
                 console.error('Error validating teacher ID:', error);
+                if (error.code === 'PGRST116') {
+                    console.log('Teacher not found in database with ID:', teacherId);
+                } else {
+                    console.error('Database error while validating teacher ID:', error);
+                }
                 return null;
             }
             
+            if (!data) {
+                console.log('No teacher found with ID:', teacherId);
+                return null;
+            }
+            
+            console.log('Teacher validated successfully:', data.name);
             return data;
         } catch (error) {
-            console.error('Error in validateTeacherId:', error);
+            console.error('Exception in validateTeacherId:', error);
             return null;
         }
     },

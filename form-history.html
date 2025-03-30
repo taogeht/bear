@@ -12,9 +12,28 @@
             margin: 0;
             padding: 0;
             background-color: #f5f5f5;
+            background-image: url('images/teddy-bear.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            position: relative;
         }
+        
+        /* Add a pseudo-element for the background overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(245, 245, 245, 0.85); /* Matches f5f5f5 with 85% opacity */
+            z-index: -1;
+        }
+        
         .nav-banner {
-            background-color: #4a90e2;
+            background-color: #2b3990; /* Match the logo blue */
             color: white;
             padding: 10px 20px;
             display: flex;
@@ -24,6 +43,16 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-small {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
         }
         .nav-title {
             font-size: 18px;
@@ -165,7 +194,7 @@
             font-style: italic;
         }
         .print-button {
-            background-color: #2ecc71;
+            background-color: #2b3990; /* Match the logo blue */
             color: white;
             border: none;
             padding: 8px 15px;
@@ -195,7 +224,10 @@
     </div>
     
     <div class="nav-banner">
-        <div class="nav-title">表单历史记录</div>
+        <div class="nav-left">
+            <img src="images/big-bear-logo.png" alt="Logo" class="logo-small">
+            <div class="nav-title">表单历史记录</div>
+        </div>
         <div class="nav-buttons">
             <button class="back-btn" onclick="goBack()">返回</button>
             <button class="logout-btn" onclick="logout()">退出登录</button>
@@ -251,8 +283,8 @@
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="weekly-homework-label">Weekly Homework:</div>
-                                <div class="data-value" id="weekly-homework">--</div>
+                                <div class="data-label" id="weekly-storybook-label">Weekly Storybook:</div>
+                                <div class="data-value" id="weekly-storybook">--</div>
                             </div>
                             
                             <div class="data-row">
@@ -275,50 +307,50 @@
                     <!-- Parent section -->
                     <div class="parent-side">
                         <div class="form-section">
-                            <div class="section-title" id="parent-section-title">Parent Information</div>
+                            <div class="section-title" id="parent-section-title">家长信息</div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="sleep-time-label">Sleep Time:</div>
+                                <div class="data-label" id="sleep-time-label">睡眠时间:</div>
                                 <div class="data-value" id="sleep-time">--</div>
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="help-needed-label">Help Needed:</div>
+                                <div class="data-label" id="help-needed-label">需要帮助:</div>
                                 <div class="data-value" id="help-needed">--</div>
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="breakfast-label">Breakfast:</div>
+                                <div class="data-label" id="breakfast-label">早餐:</div>
                                 <div class="data-value" id="breakfast">--</div>
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="watch-label">Watch Task 1:</div>
+                                <div class="data-label" id="watch-label">每週歌曲进度:</div>
                                 <div class="data-value" id="watch">--</div>
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="watch2-label">Watch Task 2:</div>
+                                <div class="data-label" id="watch2-label">影片作业进度:</div>
                                 <div class="data-value" id="watch2">--</div>
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="todo-label">To Do Task 1:</div>
+                                <div class="data-label" id="todo-label">每週故事书进度:</div>
                                 <div class="data-value" id="todo">--</div>
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="todo2-label">To Do Task 2:</div>
+                                <div class="data-label" id="todo2-label">生活作业进度:</div>
                                 <div class="data-value" id="todo2">--</div>
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="parent-share-label">Parent Share:</div>
+                                <div class="data-label" id="parent-share-label">家长分享:</div>
                                 <div class="data-value" id="parent-share">--</div>
                             </div>
                             
                             <div class="data-row">
-                                <div class="data-label" id="parent-comments-label">Parent Comments:</div>
+                                <div class="data-label" id="parent-comments-label">家长评论:</div>
                                 <div class="data-value" id="parent-comments">--</div>
                             </div>
                         </div>
@@ -369,7 +401,7 @@
                     document.getElementById('teacher-mood-label').textContent = '教师心情:';
                     document.getElementById('weekly-song-label').textContent = '每周歌曲:';
                     document.getElementById('video-homework-label').textContent = '视频作业:';
-                    document.getElementById('weekly-homework-label').textContent = '每周作业:';
+                    document.getElementById('weekly-storybook-label').textContent = '每周故事书:';
                     document.getElementById('life-homework-label').textContent = '生活作业:';
                     document.getElementById('practice-content-label').textContent = '练习内容:';
                     document.getElementById('teacher-comments-label').textContent = '教师评论:';
@@ -379,10 +411,10 @@
                     document.getElementById('sleep-time-label').textContent = '睡眠时间:';
                     document.getElementById('help-needed-label').textContent = '需要帮助:';
                     document.getElementById('breakfast-label').textContent = '早餐:';
-                    document.getElementById('watch-label').textContent = '观看任务 1:';
-                    document.getElementById('watch2-label').textContent = '观看任务 2:';
-                    document.getElementById('todo-label').textContent = '待办任务 1:';
-                    document.getElementById('todo2-label').textContent = '待办任务 2:';
+                    document.getElementById('watch-label').textContent = '每週歌曲进度:';
+                    document.getElementById('watch2-label').textContent = '影片作业进度:';
+                    document.getElementById('todo-label').textContent = '每週故事书进度:';
+                    document.getElementById('todo2-label').textContent = '生活作业进度:';
                     document.getElementById('parent-share-label').textContent = '家长分享:';
                     document.getElementById('parent-comments-label').textContent = '家长评论:';
                 } else {
@@ -403,7 +435,7 @@
                     document.getElementById('teacher-mood-label').textContent = 'Teacher Mood:';
                     document.getElementById('weekly-song-label').textContent = 'Weekly Song:';
                     document.getElementById('video-homework-label').textContent = 'Video Homework:';
-                    document.getElementById('weekly-homework-label').textContent = 'Weekly Homework:';
+                    document.getElementById('weekly-storybook-label').textContent = 'Weekly Storybook:';
                     document.getElementById('life-homework-label').textContent = 'Life Homework:';
                     document.getElementById('practice-content-label').textContent = 'Practice Content:';
                     document.getElementById('teacher-comments-label').textContent = 'Teacher Comments:';
@@ -413,10 +445,10 @@
                     document.getElementById('sleep-time-label').textContent = 'Sleep Time:';
                     document.getElementById('help-needed-label').textContent = 'Help Needed:';
                     document.getElementById('breakfast-label').textContent = 'Breakfast:';
-                    document.getElementById('watch-label').textContent = 'Watch Task 1:';
-                    document.getElementById('watch2-label').textContent = 'Watch Task 2:';
-                    document.getElementById('todo-label').textContent = 'To Do Task 1:';
-                    document.getElementById('todo2-label').textContent = 'To Do Task 2:';
+                    document.getElementById('watch-label').textContent = 'Weekly Song Progress:';
+                    document.getElementById('watch2-label').textContent = 'Video Homework Progress:';
+                    document.getElementById('todo-label').textContent = 'Weekly Storybook Progress:';
+                    document.getElementById('todo2-label').textContent = 'Life Homework Progress:';
                     document.getElementById('parent-share-label').textContent = 'Parent Share:';
                     document.getElementById('parent-comments-label').textContent = 'Parent Comments:';
                 }
@@ -666,7 +698,7 @@
             safelySetTextContent('teacher-mood', formData.teacherMood ? getMoodEmoji(formData.teacherMood) : notProvidedText);
             safelySetTextContent('weekly-song', formData.weeklySong || notProvidedText);
             safelySetTextContent('video-homework', formData.videoHomework || notProvidedText);
-            safelySetTextContent('weekly-homework', formData.weeklyHomework || notProvidedText);
+            safelySetTextContent('weekly-storybook', formData.weeklyStorybook || notProvidedText);
             safelySetTextContent('life-homework', formData.lifeHomework || notProvidedText);
             safelySetTextContent('practice-content', formData.practiceContent || notProvidedText);
             safelySetTextContent('teacher-comments', formData.teacherComments || notProvidedText);

@@ -12,9 +12,28 @@
             margin: 0;
             padding: 0;
             background-color: #f5f5f5;
+            background-image: url('images/teddy-bear.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            position: relative;
         }
+        
+        /* Add a pseudo-element for the background overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(245, 245, 245, 0.85); /* Matches f5f5f5 with 85% opacity */
+            z-index: -1;
+        }
+        
         .nav-banner {
-            background-color: #4a90e2;
+            background-color: #2b3990;
             color: white;
             padding: 10px 20px;
             display: flex;
@@ -24,6 +43,16 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-small {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
         }
         .nav-title {
             font-size: 18px;
@@ -151,7 +180,7 @@
             display: block;
             margin: 20px auto;
             padding: 10px 20px;
-            background-color: #4a90e2;
+            background-color: #2b3990;
             color: white;
             border: none;
             border-radius: 4px;
@@ -159,7 +188,7 @@
             font-size: 16px;
         }
         button:hover {
-            background-color: #3a7bc8;
+            background-color: #1a2570;
         }
         button:disabled {
             background-color: #cccccc;
@@ -191,7 +220,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-            background-color: #2196F3;
+            background-color: #2b3990;
             color: white;
         }
         .loading-overlay {
@@ -243,7 +272,10 @@
     </div>
     
     <div class="nav-banner">
-        <div class="nav-title">Weekly Communication Form</div>
+        <div class="nav-left">
+            <img src="images/big-bear-logo.png" alt="Logo" class="logo-small">
+            <div class="nav-title">Weekly Communication Form</div>
+        </div>
         <div class="nav-buttons">
             <button class="back-btn" onclick="goBack()">Back</button>
             <button class="view-history-btn" onclick="viewFormHistory()">View History</button>
@@ -293,8 +325,8 @@
                         <input type="text" id="video-homework">
                     </div>
                     <div class="form-row">
-                        <label>每週家庭作業：</label>
-                        <input type="text" id="weekly-homework">
+                        <label>每週故事書：</label>
+                        <input type="text" id="weekly-storybook">
                     </div>
                     <div class="form-row">
                         <label>生活作業：</label>
@@ -340,19 +372,19 @@
 
                 <div class="section">
                     <div class="form-row">
-                        <label>這週要觀看的：</label>
+                        <label>每週歌曲進度：</label>
                         <div class="parent-data" id="watch-display">No data submitted yet</div>
                     </div>
                     <div class="form-row">
-                        <label>這週要觀看的：</label>
+                        <label>影片作業進度：</label>
                         <div class="parent-data" id="watch2-display">No data submitted yet</div>
                     </div>
                     <div class="form-row">
-                        <label>這週要做的事情：</label>
+                        <label>每週故事書進度：</label>
                         <div class="parent-data" id="todo-display">No data submitted yet</div>
                     </div>
                     <div class="form-row">
-                        <label>這週要做的事情：</label>
+                        <label>生活作業進度：</label>
                         <div class="parent-data" id="todo2-display">No data submitted yet</div>
                     </div>
                 </div>
@@ -500,7 +532,7 @@
             // Set teacher content
             document.getElementById('weekly-song').value = formData.weeklySong || '';
             document.getElementById('video-homework').value = formData.videoHomework || '';
-            document.getElementById('weekly-homework').value = formData.weeklyHomework || '';
+            document.getElementById('weekly-storybook').value = formData.weeklyStorybook || '';
             document.getElementById('life-homework').value = formData.lifeHomework || '';
             document.getElementById('practice-content').value = formData.practiceContent || '';
             document.getElementById('teacher-comments').value = formData.teacherComments || '';
@@ -565,7 +597,7 @@
                     teacherMood: document.querySelector('.mood-emoji.selected')?.getAttribute('data-value') || '',
                     weeklySong: document.getElementById('weekly-song')?.value || '',
                     videoHomework: document.getElementById('video-homework')?.value || '',
-                    weeklyHomework: document.getElementById('weekly-homework')?.value || '',
+                    weeklyStorybook: document.getElementById('weekly-storybook')?.value || '',
                     lifeHomework: document.getElementById('life-homework')?.value || '',
                     practiceContent: document.getElementById('practice-content')?.value || '',
                     teacherComments: document.getElementById('teacher-comments')?.value || ''

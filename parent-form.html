@@ -12,9 +12,28 @@
             margin: 0;
             padding: 0;
             background-color: #f5f5f5;
+            background-image: url('images/teddy-bear.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            position: relative;
         }
+        
+        /* Add a pseudo-element for the background overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(245, 245, 245, 0.85); /* Matches f5f5f5 with 85% opacity */
+            z-index: -1;
+        }
+        
         .nav-banner {
-            background-color: #4a90e2;
+            background-color: #2b3990;
             color: white;
             padding: 10px 20px;
             display: flex;
@@ -24,6 +43,16 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-small {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
         }
         .nav-title {
             font-size: 18px;
@@ -146,7 +175,7 @@
             display: block;
             margin: 20px auto;
             padding: 10px 20px;
-            background-color: #4a90e2;
+            background-color: #2b3990;
             color: white;
             border: none;
             border-radius: 4px;
@@ -154,7 +183,7 @@
             font-size: 16px;
         }
         button:hover {
-            background-color: #3a7bc8;
+            background-color: #1a2570;
         }
         button:disabled {
             background-color: #cccccc;
@@ -229,7 +258,10 @@
     </div>
     
     <div class="nav-banner">
-        <div class="nav-title">Weekly Communication Form</div>
+        <div class="nav-left">
+            <img src="images/big-bear-logo.png" alt="Logo" class="logo-small">
+            <div class="nav-title">Weekly Communication Form</div>
+        </div>
         <div class="nav-buttons">
             <button class="back-btn" onclick="goBack()">Back</button>
             <button class="logout-btn" onclick="logout()">Logout</button>
@@ -267,8 +299,8 @@
                         <div class="teacher-data" id="video-homework-display">No data yet</div>
                     </div>
                     <div class="form-row">
-                        <label>每週家庭作業：</label>
-                        <div class="teacher-data" id="weekly-homework-display">No data yet</div>
+                        <label>每週故事書：</label>
+                        <div class="teacher-data" id="weekly-storybook-display">No data yet</div>
                     </div>
                     <div class="form-row">
                         <label>生活作業：</label>
@@ -320,7 +352,7 @@
 
                 <div class="section">
                     <div class="form-row">
-                        <label>這週要觀看的：</label>
+                        <label>每週歌曲進度：</label>
                         <div class="emoji-rating">
                             <span class="emoji watch-emoji" data-value="1">😞</span>
                             <span class="emoji watch-emoji" data-value="2">😐</span>
@@ -328,7 +360,7 @@
                         </div>
                     </div>
                     <div class="form-row">
-                        <label>這週要觀看的：</label>
+                        <label>影片作業進度：</label>
                         <div class="emoji-rating">
                             <span class="emoji watch2-emoji" data-value="1">😞</span>
                             <span class="emoji watch2-emoji" data-value="2">😐</span>
@@ -336,7 +368,7 @@
                         </div>
                     </div>
                     <div class="form-row">
-                        <label>這週要做的事情：</label>
+                        <label>每週故事書進度：</label>
                         <div class="emoji-rating">
                             <span class="emoji todo-emoji" data-value="1">😞</span>
                             <span class="emoji todo-emoji" data-value="2">😐</span>
@@ -344,7 +376,7 @@
                         </div>
                     </div>
                     <div class="form-row">
-                        <label>這週要做的事情：</label>
+                        <label>生活作業進度：</label>
                         <div class="emoji-rating">
                             <span class="emoji todo2-emoji" data-value="1">😞</span>
                             <span class="emoji todo2-emoji" data-value="2">😐</span>
@@ -504,7 +536,7 @@
             // Other teacher fields
             document.getElementById('weekly-song-display').textContent = formData.weeklySong || 'Not provided';
             document.getElementById('video-homework-display').textContent = formData.videoHomework || 'Not provided';
-            document.getElementById('weekly-homework-display').textContent = formData.weeklyHomework || 'Not provided';
+            document.getElementById('weekly-storybook-display').textContent = formData.weeklyStorybook || 'Not provided';
             document.getElementById('life-homework-display').textContent = formData.lifeHomework || 'Not provided';
             document.getElementById('practice-content-display').textContent = formData.practiceContent || 'Not provided';
             document.getElementById('teacher-comments-display').textContent = formData.teacherComments || 'Not provided';

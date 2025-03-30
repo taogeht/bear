@@ -12,14 +12,47 @@
             margin: 0;
             padding: 0;
             background-color: #f5f5f5;
+            background-image: url('images/teddy-bear.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            position: relative;
         }
+        
+        /* Add a pseudo-element for the background overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(245, 245, 245, 0.85); /* Matches f5f5f5 with 85% opacity */
+            z-index: -1;
+        }
+        
         .header {
-            background-color: #4a90e2;
+            background-color: #2b3990; /* Match the logo blue */
             color: white;
             padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .logo-container {
+            width: 60px;
+            height: 60px;
+        }
+        .logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
         .header h1 {
             margin: 0;
@@ -108,7 +141,7 @@
             font-size: 14px;
         }
         .btn-primary {
-            background-color: #4a90e2;
+            background-color: #2b3990; /* Match the logo blue */
             color: white;
         }
         .btn-secondary {
@@ -241,6 +274,15 @@
             cursor: pointer;
             margin-right: 10px;
         }
+        .template-btn {
+            background-color: #ff9800;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -260,14 +302,6 @@
                 <div class="form-group">
                     <label for="parent-name" class="required-field">Login Name</label>
                     <input type="text" id="parent-name" name="parent-name" required>
-                </div>
-                <div class="form-group">
-                    <label for="parent-email" class="optional-field">Email</label>
-                    <input type="email" id="parent-email" name="parent-email">
-                </div>
-                <div class="form-group">
-                    <label for="parent-phone" class="optional-field">Phone Number</label>
-                    <input type="tel" id="parent-phone" name="parent-phone">
                 </div>
                 <div class="form-group">
                     <label for="parent-password" class="required-field">Initial Password</label>
@@ -298,9 +332,61 @@
         </div>
     </div>
 
+    <!-- Weekly Template Modal -->
+    <div id="weeklyTemplateModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Set Weekly Template</h2>
+                <span class="close" id="closeTemplateModal">&times;</span>
+            </div>
+            <div id="template-modal-message" class="error-message"></div>
+            <div id="template-success-message" class="success-message"></div>
+            
+            <p>Set the weekly content that will be applied to all parent forms. Individual comments can be customized later.</p>
+            
+            <form id="template-form">
+                <div class="form-group">
+                    <label for="template-weekly-song">Weekly Song:</label>
+                    <input type="text" id="template-weekly-song" name="template-weekly-song">
+                </div>
+                
+                <div class="form-group">
+                    <label for="template-video-homework">Video Homework:</label>
+                    <input type="text" id="template-video-homework" name="template-video-homework">
+                </div>
+                
+                <div class="form-group">
+                    <label for="template-weekly-storybook">Weekly Storybook:</label>
+                    <input type="text" id="template-weekly-storybook" name="template-weekly-storybook">
+                </div>
+                
+                <div class="form-group">
+                    <label for="template-life-homework">Life Homework:</label>
+                    <input type="text" id="template-life-homework" name="template-life-homework">
+                </div>
+                
+                <div class="form-group">
+                    <label for="template-practice-content">Practice Content:</label>
+                    <textarea id="template-practice-content" name="template-practice-content" rows="4"></textarea>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                    <button type="button" class="btn" style="background-color: #757575; color: white;" id="cancel-template-btn">Cancel</button>
+                    <button type="submit" class="btn" style="background-color: #ff9800; color: white;">Save Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="header">
-        <h1>Teacher Dashboard</h1>
+        <div class="header-left">
+            <div class="logo-container">
+                <img src="images/big-bear-logo.png" alt="Big Bear Kindergarten Logo">
+            </div>
+            <h1>Teacher Dashboard</h1>
+        </div>
         <div class="top-buttons">
+            <button class="template-btn" id="open-template-modal">Set Weekly Template</button>
             <button class="add-parent-btn" id="open-add-parent-modal">Add New Parent</button>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
@@ -366,11 +452,35 @@
             const closeModalBtn = document.getElementById('closeModal');
             const addParentForm = document.getElementById('add-parent-form');
             
+            // Setup template modal
+            const templateModal = document.getElementById('weeklyTemplateModal');
+            const openTemplateBtn = document.getElementById('open-template-modal');
+            const closeTemplateBtn = document.getElementById('closeTemplateModal');
+            const cancelTemplateBtn = document.getElementById('cancel-template-btn');
+            const templateForm = document.getElementById('template-form');
+            
             // Setup delete confirmation modal
             const deleteModal = document.getElementById('deleteParentModal');
             const closeDeleteModalBtn = document.getElementById('closeDeleteModal');
             const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
             const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            
+            // Open template modal
+            openTemplateBtn.onclick = async function() {
+                templateModal.style.display = 'block';
+                // Load any existing template data
+                await loadTemplateData();
+            };
+            
+            // Setup template modal closing
+            closeTemplateBtn.onclick = function() { closeTemplateModal(); };
+            cancelTemplateBtn.onclick = function() { closeTemplateModal(); };
+            
+            // Handle template form submission
+            templateForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                await saveTemplateData();
+            });
             
             // Close delete modal
             function closeDeleteModal() {
@@ -447,6 +557,10 @@
                 if (event.target === deleteModal) {
                     closeDeleteModal();
                 }
+                
+                if (event.target === templateModal) {
+                    closeTemplateModal();
+                }
             };
             
             // Handle form submission
@@ -454,8 +568,6 @@
                 e.preventDefault();
                 
                 const name = document.getElementById('parent-name').value.trim();
-                const email = document.getElementById('parent-email').value.trim() || null;
-                const phone = document.getElementById('parent-phone').value.trim() || null;
                 const password = document.getElementById('parent-password').value;
                 
                 if (!name || !password) {
@@ -473,8 +585,6 @@
                         .insert([
                             { 
                                 name: name, 
-                                email: email,
-                                phone: phone,
                                 password: password
                             }
                         ])
@@ -594,23 +704,8 @@
                         
                         nameDiv.appendChild(statusSpan);
                         
-                        // Create parent email and phone info
-                        const contactInfoDiv = document.createElement('div');
-                        contactInfoDiv.className = 'parent-email';
-                        
-                        if (parent.email) {
-                            contactInfoDiv.textContent = parent.email;
-                        } else {
-                            contactInfoDiv.textContent = 'No email provided';
-                        }
-                        
-                        if (parent.phone) {
-                            contactInfoDiv.textContent += ' | ' + parent.phone;
-                        }
-                        
                         // Add parent info elements to parent info
                         parentInfo.appendChild(nameDiv);
-                        parentInfo.appendChild(contactInfoDiv);
                         
                         // Create action buttons
                         const actionButtons = document.createElement('div');
@@ -769,6 +864,226 @@
             
             // Show the modal
             document.getElementById('deleteParentModal').style.display = 'block';
+        }
+        
+        // Load template data from localStorage
+        async function loadTemplateData() {
+            try {
+                // Get the current week's start date for the key
+                const weekStart = supabaseAuth.getWeekStartDate();
+                const templateKey = `weeklyTemplate_${weekStart}`;
+                
+                // Check if we have a template for this week
+                const templateData = localStorage.getItem(templateKey);
+                
+                if (templateData) {
+                    const template = JSON.parse(templateData);
+                    
+                    // Fill the form with saved template data
+                    document.getElementById('template-weekly-song').value = template.weeklySong || '';
+                    document.getElementById('template-video-homework').value = template.videoHomework || '';
+                    document.getElementById('template-weekly-storybook').value = template.weeklyStorybook || '';
+                    document.getElementById('template-life-homework').value = template.lifeHomework || '';
+                    document.getElementById('template-practice-content').value = template.practiceContent || '';
+                    
+                    console.log('Loaded template data for week:', weekStart);
+                } else {
+                    console.log('No template found for week:', weekStart);
+                    // Clear the form
+                    document.getElementById('template-form').reset();
+                }
+            } catch (error) {
+                console.error('Error loading template data:', error);
+                showTemplateError('Error loading template data. Please try again.');
+            }
+        }
+        
+        // Save template data to localStorage and apply to parent forms
+        async function saveTemplateData() {
+            try {
+                showLoading(true);
+                
+                // Get values from form
+                const weeklySong = document.getElementById('template-weekly-song').value;
+                const videoHomework = document.getElementById('template-video-homework').value;
+                const weeklyStorybook = document.getElementById('template-weekly-storybook').value;
+                const lifeHomework = document.getElementById('template-life-homework').value;
+                const practiceContent = document.getElementById('template-practice-content').value;
+                
+                // Create template object
+                const templateData = {
+                    weeklySong,
+                    videoHomework,
+                    weeklyStorybook,
+                    lifeHomework,
+                    practiceContent,
+                    // Add current date fields
+                    year: new Date().getFullYear().toString(),
+                    month: (new Date().getMonth() + 1).toString(),
+                    day: new Date().getDate().toString(),
+                    teacherMood: '5' // Default to happy mood
+                };
+                
+                // Get the current week's start date for the key
+                const weekStart = supabaseAuth.getWeekStartDate();
+                const templateKey = `weeklyTemplate_${weekStart}`;
+                
+                // Save to localStorage
+                localStorage.setItem(templateKey, JSON.stringify(templateData));
+                
+                console.log('Template saved for week:', weekStart);
+                
+                // Get all parents - we need to apply the template to all their forms
+                const parents = await supabaseAuth.getParents();
+                console.log(`Found ${parents.length} parents to update with template data`);
+                
+                // Get user session for the teacher ID
+                const session = supabaseAuth.getSession();
+                
+                if (!session || session.userType !== 'teacher') {
+                    throw new Error('Invalid session. Please login again.');
+                }
+                
+                // Success and error counters
+                let successCount = 0;
+                let errorCount = 0;
+                
+                // For each parent, create or update their form with the template data
+                for (const parent of parents) {
+                    try {
+                        console.log(`Applying template to parent: ${parent.name} (${parent.id})`);
+                        
+                        // Get existing form for this parent and week
+                        const supabase = await supabaseAuth.getSupabaseClient();
+                        const { data: existingForm, error: formError } = await supabase
+                            .from('forms')
+                            .select('*')
+                            .eq('parent_id', parent.id)
+                            .eq('week_start', weekStart)
+                            .single();
+                        
+                        if (formError && formError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+                            console.error(`Error fetching form for parent ${parent.id}:`, formError);
+                        }
+                        
+                        // Merge template data with any existing form data
+                        // Keep parent's submissions, just update the teacher fields
+                        const formData = {
+                            ...templateData
+                        };
+                        
+                        // If form exists, preserve parent data
+                        if (existingForm) {
+                            console.log(`Found existing form for parent ${parent.id}, preserving parent data`);
+                            formData.sleepTime = existingForm.sleepTime || '';
+                            formData.helpNeeded = existingForm.helpNeeded || '';
+                            formData.breakfast = existingForm.breakfast || '';
+                            formData.watch = existingForm.watch || '';
+                            formData.watch2 = existingForm.watch2 || '';
+                            formData.todo = existingForm.todo || '';
+                            formData.todo2 = existingForm.todo2 || '';
+                            formData.parentShare = existingForm.parentShare || '';
+                            formData.parentComments = existingForm.parentComments || '';
+                            
+                            // Don't overwrite individual teacher comments if they exist
+                            if (existingForm.teacherComments) {
+                                formData.teacherComments = existingForm.teacherComments;
+                            }
+                        } else {
+                            console.log(`No existing form found for parent ${parent.id}, creating new form`);
+                            // Initialize parent fields to empty strings
+                            formData.sleepTime = '';
+                            formData.helpNeeded = '';
+                            formData.breakfast = '';
+                            formData.watch = '';
+                            formData.watch2 = '';
+                            formData.todo = '';
+                            formData.todo2 = '';
+                            formData.parentShare = '';
+                            formData.parentComments = '';
+                            formData.teacherComments = '';
+                        }
+                        
+                        try {
+                            // Save form with template data
+                            await supabaseAuth.saveForm(parent.id, formData, true);
+                            console.log(`Successfully updated form for parent ${parent.id}`);
+                            successCount++;
+                        } catch (saveError) {
+                            console.error(`Error saving form for parent ${parent.id}:`, saveError);
+                            errorCount++;
+                        }
+                    } catch (parentError) {
+                        console.error(`Error processing parent ${parent.id}:`, parentError);
+                        errorCount++;
+                    }
+                }
+                
+                console.log(`Template application complete: ${successCount} successful, ${errorCount} failed`);
+                
+                // Show success message
+                if (successCount > 0) {
+                    showTemplateSuccess(`Template saved and applied to ${successCount} parent forms!`);
+                    
+                    // Only close the modal if we had at least some success
+                    setTimeout(function() {
+                        closeTemplateModal();
+                    }, 1500);
+                } else {
+                    showTemplateError(`Failed to apply template to any parent forms. Please try again.`);
+                }
+                
+                // Reload parent list to update statuses
+                await loadParents();
+                
+                showLoading(false);
+            } catch (error) {
+                console.error('Error saving template data:', error);
+                showTemplateError('Error saving template: ' + (error.message || 'Unknown error'));
+                showLoading(false);
+            }
+        }
+        
+        // Show template modal error message
+        function showTemplateError(message) {
+            const errorElement = document.getElementById('template-modal-message');
+            if (!errorElement) {
+                console.error('Template error element not found');
+                return;
+            }
+            
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            document.getElementById('template-success-message').style.display = 'none';
+            showLoading(false);
+        }
+        
+        // Show template modal success message
+        function showTemplateSuccess(message) {
+            const successElement = document.getElementById('template-success-message');
+            if (!successElement) {
+                console.error('Template success element not found');
+                return;
+            }
+            
+            successElement.textContent = message;
+            successElement.style.display = 'block';
+            document.getElementById('template-modal-message').style.display = 'none';
+        }
+        
+        // Close template modal function (globally accessible)
+        function closeTemplateModal() {
+            const templateModal = document.getElementById('weeklyTemplateModal');
+            if (templateModal) {
+                templateModal.style.display = 'none';
+            }
+            
+            // Hide messages
+            const errorMessage = document.getElementById('template-modal-message');
+            const successMessage = document.getElementById('template-success-message');
+            
+            if (errorMessage) errorMessage.style.display = 'none';
+            if (successMessage) successMessage.style.display = 'none';
         }
     </script>
 </body>

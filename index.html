@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Bear Sports - Kindergarten Communication App</title>
+    <title>Big Bear Outdoor English Kindergarten - Communication App</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,15 +13,75 @@
             flex-direction: column;
             min-height: 100vh;
             background-color: #f5f5f5;
+            background-image: url('images/teddy-bear.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            position: relative;
         }
+        
+        /* Add a pseudo-element for the background overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(245, 245, 245, 0.85); /* Matches f5f5f5 with 85% opacity */
+            z-index: -1;
+        }
+        
         header {
-            background-color: #4a90e2;
+            background-color: #2b3990; /* Matching the logo's blue */
             color: white;
-            padding: 20px;
+            padding: 15px 20px;
             text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            max-width: 1000px;
+            width: 100%;
+        }
+        .logo-container {
+            width: 120px;
+            height: 120px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .logo-container img {
+            width: 90%;
+            height: 90%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+        .header-text {
+            flex-grow: 1;
+            text-align: left;
         }
         h1 {
             margin: 0;
+            font-size: 28px;
+            color: white;
+        }
+        h2 {
+            margin: 5px 0 0 0;
+            font-size: 18px;
+            font-weight: normal;
+            color: #ffde00; /* Yellow from the logo */
         }
         .container {
             flex: 1;
@@ -41,6 +101,7 @@
             text-align: center;
             width: 100%;
             max-width: 600px;
+            border-top: 5px solid #2b3990;
         }
         .login-options {
             display: flex;
@@ -58,23 +119,24 @@
             text-align: center;
             cursor: pointer;
             transition: transform 0.2s;
+            border-top: 4px solid #2b3990;
         }
         .login-card:hover {
             transform: translateY(-5px);
         }
         .login-card h3 {
             margin-top: 0;
-            color: #4a90e2;
+            color: #2b3990;
         }
         .icon {
             font-size: 48px;
             margin-bottom: 15px;
         }
         footer {
-            background-color: #333;
+            background-color: #2b3990;
             color: white;
             text-align: center;
-            padding: 10px;
+            padding: 15px;
             font-size: 14px;
         }
         .setup-note {
@@ -85,17 +147,38 @@
             border-radius: 4px;
             max-width: 600px;
         }
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .header-text {
+                text-align: center;
+            }
+            .logo-container {
+                width: 100px;
+                height: 100px;
+            }
+        }
     </style>
 </head>
 <body>
     <header>
-        <h1>Big Bear Sports - Kindergarten Communication App</h1>
+        <div class="header-content">
+            <div class="logo-container">
+                <img src="images/big-bear-logo.png" alt="Big Bear Outdoor English Kindergarten Logo">
+            </div>
+            <div class="header-text">
+                <h1>Big Bear Outdoor English Kindergarten</h1>
+                <h2>Parent-Teacher Communication App</h2>
+            </div>
+        </div>
     </header>
     
     <div class="container">
         <div class="welcome-box">
-            <h2>Welcome to the Communication App</h2>
-            <p>This application helps parents and teachers communicate effectively about children's progress through weekly forms.</p>
+            <h2>Welcome to Our Communication Platform</h2>
+            <p>This application helps parents and teachers maintain effective communication about children's progress through weekly forms.</p>
             <p>Please select your role to continue:</p>
         </div>
         
@@ -115,7 +198,7 @@
     </div>
     
     <footer>
-        &copy; 2025 Parent-Teacher Communication App
+        &copy; 2025 Big Bear Outdoor English Kindergarten - All Rights Reserved
     </footer>
 </body>
 </html> 
