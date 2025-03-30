@@ -69,6 +69,37 @@
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
+        
+        /* Form Table Styles */
+        .form-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid #000;
+        }
+        .form-table th, .form-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            vertical-align: top;
+        }
+        .form-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            text-align: center;
+        }
+        .form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        .form-title {
+            font-weight: bold;
+            font-size: 24px;
+        }
+        
         header {
             display: flex;
             justify-content: space-between;
@@ -109,26 +140,7 @@
             font-size: 16px;
             margin-bottom: 10px;
         }
-        .form-section {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
-        .section-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #ddd;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        .data-row {
-            margin-bottom: 10px;
-        }
+        
         .data-label {
             font-weight: bold;
             margin-bottom: 5px;
@@ -138,7 +150,13 @@
             padding: 8px;
             border-radius: 4px;
             border: 1px solid #eee;
+            min-height: 20px;
         }
+        
+        .mood-value, .rating-value {
+            font-size: 18px;
+        }
+        
         .logout-btn, .back-btn {
             padding: 8px 15px;
             border: none;
@@ -200,20 +218,36 @@
             padding: 8px 15px;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 14px;
             float: right;
             margin-bottom: 10px;
         }
+        
+        .signature-row {
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 10px;
+        }
+        
         @media print {
-            .nav-banner, .week-selector, .back-btn, .logout-btn, .print-button, footer {
-                display: none;
+            .nav-banner, .nav-buttons, .week-selector, .print-button {
+                display: none !important;
+            }
+            body {
+                background: none !important;
+                font-size: 12pt;
+            }
+            body::before {
+                display: none !important;
             }
             .container {
                 box-shadow: none;
                 margin: 0;
                 padding: 0;
+                max-width: 100%;
             }
-            body {
-                background: white;
+            .error-message {
+                display: none !important;
             }
         }
     </style>
@@ -238,125 +272,141 @@
         <div id="error-message" class="error-message"></div>
         
         <div class="parent-info">
-            历史表单: <span id="parent-name">加载中...</span>
+            History for: <span id="parent-name">Loading...</span>
         </div>
         
         <div class="week-selector">
             <div>
-                <label for="week-select">选择周次:</label>
+                <label for="week-select">Select Week:</label>
                 <select id="week-select">
-                    <option value="">Loading weeks...</option>
+                    <option value="">Select a week...</option>
                 </select>
             </div>
-            <button class="print-button" onclick="window.print()">打印表单</button>
+            <button class="print-button" onclick="window.print()">Print Form</button>
         </div>
         
-        <div id="form-container" class="form-container">
-            <div id="no-form-message" class="no-data-message">
-                从下拉菜单中选择一周以查看表单数据。
+        <div id="form-content" style="display: none;">
+            <div class="form-header">
+                <div class="form-title">WEEKLY COMMUNICATION</div>
+                <div class="form-date">Date: <span id="form-date">--/--/----</span></div>
             </div>
             
-            <div id="form-content" style="display: none;">
-                <div class="form-date">
-                    日期: <span id="form-date">--/--/----</span>
-                </div>
-                
-                <div class="grid">
-                    <!-- Teacher section -->
-                    <div class="teacher-side">
-                        <div class="form-section">
-                            <div class="section-title" id="teacher-section-title">Teacher Information</div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="teacher-mood-label">Teacher Mood:</div>
-                                <div class="data-value" id="teacher-mood">--</div>
+            <table class="form-table">
+                <tr>
+                    <td width="50%">
+                        <div>
+                            <div class="data-label" id="teacher-mood-label">Teacher Mood:</div>
+                            <div class="data-value mood-value" id="teacher-mood-value"></div>
+                        </div>
+                    </td>
+                    <td width="25%">
+                        <div>
+                            <div class="data-label" id="sleep-time-label">Sleep Time:</div>
+                            <div class="data-value" id="sleep-time-value"></div>
+                            <div class="data-label" id="help-needed-label">Help Needed:</div>
+                            <div class="data-value" id="help-needed-value"></div>
+                        </div>
+                    </td>
+                    <td width="25%">
+                        <div>
+                            <div class="data-label" id="breakfast-label">Breakfast:</div>
+                            <div class="data-value mood-value" id="breakfast-value"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div>
+                            <div class="data-label" id="weekly-song-label">Weekly Song:</div>
+                            <div class="data-value" id="weekly-song-value"></div>
+                        </div>
+                    </td>
+                    <td colspan="2" rowspan="2">
+                        <div style="display: flex; flex-direction: column; height: 100%;">
+                            <div style="margin-bottom: 10px;">
+                                <div class="data-label" id="watch-label">Weekly Song Progress:</div>
+                                <div class="data-value rating-value" id="watch-value"></div>
                             </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="weekly-song-label">Weekly Song:</div>
-                                <div class="data-value" id="weekly-song">--</div>
+                            <div style="margin-bottom: 10px;">
+                                <div class="data-label" id="watch2-label">Video Homework Progress:</div>
+                                <div class="data-value rating-value" id="watch2-value"></div>
                             </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="video-homework-label">Video Homework:</div>
-                                <div class="data-value" id="video-homework">--</div>
+                            <div style="margin-bottom: 10px;">
+                                <div class="data-label" id="todo-label">Weekly Storybook Progress:</div>
+                                <div class="data-value rating-value" id="todo-value"></div>
                             </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="weekly-storybook-label">Weekly Storybook:</div>
-                                <div class="data-value" id="weekly-storybook">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="life-homework-label">Life Homework:</div>
-                                <div class="data-value" id="life-homework">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="practice-content-label">Practice Content:</div>
-                                <div class="data-value" id="practice-content">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="teacher-comments-label">Teacher Comments:</div>
-                                <div class="data-value" id="teacher-comments">--</div>
+                            <div>
+                                <div class="data-label" id="todo2-label">Life Homework Progress:</div>
+                                <div class="data-value rating-value" id="todo2-value"></div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Parent section -->
-                    <div class="parent-side">
-                        <div class="form-section">
-                            <div class="section-title" id="parent-section-title">家长信息</div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="sleep-time-label">睡眠时间:</div>
-                                <div class="data-value" id="sleep-time">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="help-needed-label">需要帮助:</div>
-                                <div class="data-value" id="help-needed">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="breakfast-label">早餐:</div>
-                                <div class="data-value" id="breakfast">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="watch-label">每週歌曲进度:</div>
-                                <div class="data-value" id="watch">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="watch2-label">影片作业进度:</div>
-                                <div class="data-value" id="watch2">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="todo-label">每週故事书进度:</div>
-                                <div class="data-value" id="todo">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="todo2-label">生活作业进度:</div>
-                                <div class="data-value" id="todo2">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="parent-share-label">家长分享:</div>
-                                <div class="data-value" id="parent-share">--</div>
-                            </div>
-                            
-                            <div class="data-row">
-                                <div class="data-label" id="parent-comments-label">家长评论:</div>
-                                <div class="data-value" id="parent-comments">--</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div>
+                            <div class="data-label" id="video-homework-label">Video Homework:</div>
+                            <div class="data-value" id="video-homework-value"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div>
+                            <div class="data-label" id="weekly-storybook-label">Weekly Storybook:</div>
+                            <div class="data-value" id="weekly-storybook-value"></div>
+                        </div>
+                    </td>
+                    <td colspan="2" rowspan="2">
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div>
+                            <div class="data-label" id="life-homework-label">Life Homework:</div>
+                            <div class="data-value" id="life-homework-value"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div>
+                            <div class="data-label" id="practice-content-label">Practice Content:</div>
+                            <div class="data-value" id="practice-content-value"></div>
+                        </div>
+                    </td>
+                    <td colspan="2">
+                        <div>
+                            <div class="data-label" id="parent-share-label">Parent Share:</div>
+                            <div class="data-value" id="parent-share-value"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div>
+                            <div class="data-label" id="teacher-comments-label">Teacher Comments:</div>
+                            <div class="data-value" id="teacher-comments-value"></div>
+                            <div class="signature-row">
+                                <div>老師：<span id="teacher-name-value"></span></div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
+                    </td>
+                    <td colspan="2">
+                        <div>
+                            <div class="data-label" id="parent-comments-label">Parent Comments:</div>
+                            <div class="data-value" id="parent-comments-value"></div>
+                            <div class="signature-row">
+                                <div>家長：<span id="parent-name-value"></span></div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <div id="no-form-message" class="no-data-message">
+            Select a week from the dropdown to view form data.
         </div>
     </div>
 
@@ -390,33 +440,23 @@
                     document.querySelector('.nav-title').textContent = '表单历史记录';
                     document.querySelector('.back-btn').textContent = '返回';
                     document.querySelector('.logout-btn').textContent = '退出登录';
-                    document.querySelector('.parent-info').innerHTML = '历史表单: <span id="parent-name">加载中...</span>';
-                    document.querySelector('label[for="week-select"]').textContent = '选择周次:';
-                    document.querySelector('.print-button').textContent = '打印表单';
-                    document.querySelector('#no-form-message').textContent = '从下拉菜单中选择一周以查看表单数据。';
-                    document.querySelector('.form-date').innerHTML = '日期: <span id="form-date">--/--/----</span>';
+                    document.querySelector('.parent-info').innerHTML = 'History for: <span id="parent-name">Loading...</span>';
+                    document.querySelector('label[for="week-select"]').textContent = 'Select Week:';
+                    document.querySelector('.print-button').textContent = 'Print Form';
+                    document.querySelector('#no-form-message').textContent = 'Select a week from the dropdown to view form data.';
+                    document.querySelector('.form-date').innerHTML = 'Date: <span id="form-date">--/--/----</span>';
                     
                     // Set Chinese labels for teacher section
-                    document.getElementById('teacher-section-title').textContent = '教师信息';
-                    document.getElementById('teacher-mood-label').textContent = '教师心情:';
-                    document.getElementById('weekly-song-label').textContent = '每周歌曲:';
-                    document.getElementById('video-homework-label').textContent = '视频作业:';
-                    document.getElementById('weekly-storybook-label').textContent = '每周故事书:';
-                    document.getElementById('life-homework-label').textContent = '生活作业:';
-                    document.getElementById('practice-content-label').textContent = '练习内容:';
-                    document.getElementById('teacher-comments-label').textContent = '教师评论:';
-                    
-                    // Set Chinese labels for parent section
-                    document.getElementById('parent-section-title').textContent = '家长信息';
-                    document.getElementById('sleep-time-label').textContent = '睡眠时间:';
-                    document.getElementById('help-needed-label').textContent = '需要帮助:';
-                    document.getElementById('breakfast-label').textContent = '早餐:';
-                    document.getElementById('watch-label').textContent = '每週歌曲进度:';
-                    document.getElementById('watch2-label').textContent = '影片作业进度:';
-                    document.getElementById('todo-label').textContent = '每週故事书进度:';
-                    document.getElementById('todo2-label').textContent = '生活作业进度:';
-                    document.getElementById('parent-share-label').textContent = '家长分享:';
-                    document.getElementById('parent-comments-label').textContent = '家长评论:';
+                    document.getElementById('teacher-mood-label').textContent = 'Teacher Mood:';
+                    document.getElementById('sleep-time-label').textContent = 'Sleep Time:';
+                    document.getElementById('help-needed-label').textContent = 'Help Needed:';
+                    document.getElementById('breakfast-label').textContent = 'Breakfast:';
+                    document.getElementById('watch-label').textContent = 'Weekly Song Progress:';
+                    document.getElementById('watch2-label').textContent = 'Video Homework Progress:';
+                    document.getElementById('todo-label').textContent = 'Weekly Storybook Progress:';
+                    document.getElementById('todo2-label').textContent = 'Life Homework Progress:';
+                    document.getElementById('parent-share-label').textContent = 'Parent Share:';
+                    document.getElementById('parent-comments-label').textContent = 'Parent Comments:';
                 } else {
                     // Set English interface for teachers - ALL elements
                     
@@ -431,17 +471,7 @@
                     document.querySelector('.form-date').innerHTML = 'Date: <span id="form-date">--/--/----</span>';
                     
                     // Set English labels for teacher section
-                    document.getElementById('teacher-section-title').textContent = 'Teacher Information';
                     document.getElementById('teacher-mood-label').textContent = 'Teacher Mood:';
-                    document.getElementById('weekly-song-label').textContent = 'Weekly Song:';
-                    document.getElementById('video-homework-label').textContent = 'Video Homework:';
-                    document.getElementById('weekly-storybook-label').textContent = 'Weekly Storybook:';
-                    document.getElementById('life-homework-label').textContent = 'Life Homework:';
-                    document.getElementById('practice-content-label').textContent = 'Practice Content:';
-                    document.getElementById('teacher-comments-label').textContent = 'Teacher Comments:';
-                    
-                    // Set English labels for parent section
-                    document.getElementById('parent-section-title').textContent = 'Parent Information';
                     document.getElementById('sleep-time-label').textContent = 'Sleep Time:';
                     document.getElementById('help-needed-label').textContent = 'Help Needed:';
                     document.getElementById('breakfast-label').textContent = 'Breakfast:';
@@ -648,70 +678,72 @@
                 if (!rating) return notProvidedText;
                 
                 const moodMap = {
-                    '1': '😟',
-                    '2': '😞',
-                    '3': '😐',
-                    '4': '😑',
-                    '5': '🙂',
-                    '6': '😄'
+                    '1': '😡',
+                    '2': '😢',
+                    '3': '😴',
+                    '4': '😊',
+                    '5': '😃',
+                    '6': '🤩'
                 };
-                
-                return moodMap[rating] || notProvidedText;
+                return moodMap[rating] || rating;
             }
             
-            // Helper function to convert other ratings to emoji
+            // Helper function for emoji ratings
             function getRatingEmoji(rating) {
                 if (!rating) return notProvidedText;
                 
-                // For watch, todo and their variants which only have 3 values
-                if (['1', '2', '3'].includes(rating)) {
-                    const ratingMap = {
-                        '1': '😞',
-                        '2': '😐',
-                        '3': '😊'
-                    };
-                    return ratingMap[rating] || notProvidedText;
-                }
-                
                 const ratingMap = {
                     '1': '😞',
-                    '2': '😔',
+                    '2': '😐',
+                    '3': '😊'
+                };
+                return ratingMap[rating] || rating;
+            }
+            
+            // Helper function for breakfast emoji
+            function getBreakfastEmoji(rating) {
+                if (!rating) return notProvidedText;
+                
+                const breakfastMap = {
+                    '1': '😟',
+                    '2': '😞',
                     '3': '😐',
                     '4': '🙂',
                     '5': '😄'
                 };
-                
-                return ratingMap[rating] || notProvidedText;
+                return breakfastMap[rating] || rating;
             }
             
-            // Helper function to safely set element text content
-            function safelySetTextContent(elementId, value) {
-                const element = document.getElementById(elementId);
-                if (element) {
-                    element.textContent = value;
-                } else {
-                    console.warn(`Element with ID ${elementId} not found`);
-                }
+            // Set values
+            setValue('teacher-mood', getMoodEmoji(formData.teacherMood));
+            setValue('weekly-song', formData.weeklySong);
+            setValue('video-homework', formData.videoHomework);
+            setValue('weekly-storybook', formData.weeklyStorybook);
+            setValue('life-homework', formData.lifeHomework);
+            setValue('practice-content', formData.practiceContent);
+            setValue('teacher-comments', formData.teacherComments);
+            setValue('teacher-name', formData.teacherName || '');
+            
+            setValue('sleep-time', formData.sleepTime);
+            setValue('help-needed', formData.helpNeeded);
+            setValue('breakfast', getBreakfastEmoji(formData.breakfast));
+            setValue('watch', getRatingEmoji(formData.watch));
+            setValue('watch2', getRatingEmoji(formData.watch2));
+            setValue('todo', getRatingEmoji(formData.todo));
+            setValue('todo2', getRatingEmoji(formData.todo2));
+            setValue('parent-share', formData.parentShare);
+            setValue('parent-comments', formData.parentComments);
+            setValue('parent-name', formData.parentName || parentName);
+        }
+        
+        // Helper function to set element values with error handling
+        function setValue(elementId, value) {
+            const element = document.getElementById(`${elementId}-value`);
+            if (element) {
+                element.textContent = value || notProvidedText;
+            } else {
+                console.error(`Element with ID ${elementId}-value not found`);
             }
-            
-            // Display all form data with consistent language
-            safelySetTextContent('teacher-mood', formData.teacherMood ? getMoodEmoji(formData.teacherMood) : notProvidedText);
-            safelySetTextContent('weekly-song', formData.weeklySong || notProvidedText);
-            safelySetTextContent('video-homework', formData.videoHomework || notProvidedText);
-            safelySetTextContent('weekly-storybook', formData.weeklyStorybook || notProvidedText);
-            safelySetTextContent('life-homework', formData.lifeHomework || notProvidedText);
-            safelySetTextContent('practice-content', formData.practiceContent || notProvidedText);
-            safelySetTextContent('teacher-comments', formData.teacherComments || notProvidedText);
-            
-            safelySetTextContent('sleep-time', formData.sleepTime || notProvidedText);
-            safelySetTextContent('help-needed', formData.helpNeeded || notProvidedText);
-            safelySetTextContent('breakfast', formData.breakfast ? getRatingEmoji(formData.breakfast) : notProvidedText);
-            safelySetTextContent('watch', formData.watch ? getRatingEmoji(formData.watch) : notProvidedText);
-            safelySetTextContent('watch2', formData.watch2 ? getRatingEmoji(formData.watch2) : notProvidedText);
-            safelySetTextContent('todo', formData.todo ? getRatingEmoji(formData.todo) : notProvidedText);
-            safelySetTextContent('todo2', formData.todo2 ? getRatingEmoji(formData.todo2) : notProvidedText);
-            safelySetTextContent('parent-share', formData.parentShare || notProvidedText);
-            safelySetTextContent('parent-comments', formData.parentComments || notProvidedText);
         }
         
         // Hide form content
