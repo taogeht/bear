@@ -429,6 +429,7 @@
                 
                 <div style="display: flex; justify-content: center; gap: 15px; margin-top: 20px;">
                     <button type="button" class="btn" style="background-color: #4caf50; color: white;" id="load-current-template-btn">Load Current Week's Template</button>
+                    <button type="button" class="btn" style="background-color: #f44336; color: white;" id="clear-upcoming-fields-btn">Clear All Fields</button>
                     <button type="button" class="btn" style="background-color: #2b3990; color: white;" id="save-upcoming-template-btn">Save This Schedule</button>
                 </div>
             </div>
@@ -548,6 +549,9 @@
             
             // Load current template
             document.getElementById('load-current-template-btn').addEventListener('click', loadCurrentTemplateForUpcoming);
+            
+            // Clear all fields
+            document.getElementById('clear-upcoming-fields-btn').addEventListener('click', clearUpcomingTemplateForm);
         }
         
         async function loadUpcomingTemplate(parentId, weeksAhead) {
