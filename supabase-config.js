@@ -7,6 +7,16 @@ let supabaseClientInstance = null;
 
 // Authentication and Database Functions
 const supabaseAuth = {
+    // Initialize supabaseAuth and create client if needed
+    init: function() {
+        // Create a Supabase client if one doesn't exist yet
+        if (!supabaseClientInstance && typeof supabase !== 'undefined') {
+            supabaseClientInstance = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            window.supabaseClient = supabaseClientInstance;
+        }
+        return this;
+    },
+    
     // Initialize Supabase client using a singleton pattern
     getSupabaseClient: async function() {
         // If we already have an instance, return it
@@ -589,6 +599,167 @@ const supabaseAuth = {
             return { success: true };
         } catch (error) {
             console.error('Error in deleteParent function:', error);
+            throw error;
+        }
+    },
+
+    // ----- Upcoming Week Templates Functions -----
+    
+    // Save a template for an upcoming week (global for all parents)
+    saveUpcomingWeekTemplate: async function(parentId, weeksAhead, templateData) {
+        if (!weeksAhead) throw new Error('Weeks ahead is required');
+        if (!templateData) throw new Error('Template data is required');
+        
+        try {
+            const supabase = await this.getSupabaseClient();
+            
+            // Calculate the week start date based on weeks ahead
+            const now = new Date();
+            const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const diff = now.getDate() - day + (7 * parseInt(weeksAhead));
+            const weekStart = new Date(now.setDate(diff));
+            weekStart.setHours(0, 0, 0, 0);
+            const weekStartDate = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            // First check if a template already exists for this week
+            const { data: existingTemplate, error: checkError } = await supabase
+                .from('upcoming_week_templates')
+                .select('id')
+                .eq('week_start', weekStartDate)
+                .single();
+            
+            let result;
+            
+            if (existingTemplate) {
+                // Update existing template
+                result = await supabase
+                    .from('upcoming_week_templates')
+                    .update({
+                        weekly_song: templateData.weekly_song,
+                        video_homework: templateData.video_homework,
+                        weekly_storybook: templateData.weekly_storybook,
+                        life_homework: templateData.life_homework,
+                        practice_content: templateData.practice_content,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existingTemplate.id);
+            } else {
+                // Insert new template
+                result = await supabase
+                    .from('upcoming_week_templates')
+                    .insert([{
+                        week_start: weekStartDate,
+                        weekly_song: templateData.weekly_song,
+                        video_homework: templateData.video_homework,
+                        weekly_storybook: templateData.weekly_storybook,
+                        life_homework: templateData.life_homework,
+                        practice_content: templateData.practice_content
+                    }]);
+            }
+            
+            if (result.error) {
+                console.error('Error saving upcoming week template:', result.error);
+                throw result.error;
+            }
+            
+            return { success: true };
+        } catch (error) {
+            console.error('Error in saveUpcomingWeekTemplate:', error);
+            throw error;
+        }
+    },
+    
+    // Get template for an upcoming week
+    getUpcomingWeekTemplate: async function(parentId, weeksAhead) {
+        if (!parentId) throw new Error('Parent ID is required');
+        if (!weeksAhead) throw new Error('Weeks ahead is required');
+        
+        try {
+            const supabase = await this.getSupabaseClient();
+            
+            // Calculate the week start date based on weeks ahead
+            const now = new Date();
+            const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const diff = now.getDate() - day + (7 * parseInt(weeksAhead));
+            const weekStart = new Date(now.setDate(diff));
+            weekStart.setHours(0, 0, 0, 0);
+            const weekStartDate = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            const { data, error } = await supabase
+                .from('upcoming_week_templates')
+                .select('*')
+                .eq('parent_id', parentId)
+                .eq('week_start', weekStartDate)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+                console.error('Error retrieving upcoming week template:', error);
+                throw error;
+            }
+            
+            return data || null;
+        } catch (error) {
+            console.error('Error in getUpcomingWeekTemplate:', error);
+            throw error;
+        }
+    },
+    
+    // Get the weekly template for a specific parent
+    getWeeklyTemplateForParent: async function(parentId) {
+        if (!parentId) throw new Error('Parent ID is required');
+        
+        try {
+            const weekStart = this.getWeekStartDate();
+            const supabase = await this.getSupabaseClient();
+            
+            const { data, error } = await supabase
+                .from('forms')
+                .select('weeklySong, videoHomework, weeklyStorybook, lifeHomework, practiceContent')
+                .eq('parent_id', parentId)
+                .eq('week_start', weekStart)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') {
+                console.error('Error retrieving current week template:', error);
+                throw error;
+            }
+            
+            return data || null;
+        } catch (error) {
+            console.error('Error in getWeeklyTemplateForParent:', error);
+            throw error;
+        }
+    },
+
+    // Get template for an upcoming week (global for all parents)
+    getUpcomingWeekTemplate: async function(parentId, weeksAhead) {
+        if (!weeksAhead) throw new Error('Weeks ahead is required');
+        
+        try {
+            const supabase = await this.getSupabaseClient();
+            
+            // Calculate the week start date based on weeks ahead
+            const now = new Date();
+            const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const diff = now.getDate() - day + (7 * parseInt(weeksAhead));
+            const weekStart = new Date(now.setDate(diff));
+            weekStart.setHours(0, 0, 0, 0);
+            const weekStartDate = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            const { data, error } = await supabase
+                .from('upcoming_week_templates')
+                .select('*')
+                .eq('week_start', weekStartDate)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+                console.error('Error retrieving upcoming week template:', error);
+                throw error;
+            }
+            
+            return data || null;
+        } catch (error) {
+            console.error('Error in getUpcomingWeekTemplate:', error);
             throw error;
         }
     },

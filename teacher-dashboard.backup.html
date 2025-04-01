@@ -388,12 +388,19 @@
             <div id="upcoming-modal-message" class="error-message"></div>
             <div id="upcoming-success-message" class="success-message"></div>
             
-            <p>Create and manage templates for upcoming weeks. Select a week to begin.</p>
+            <p>Create and manage templates for upcoming weeks. Select a parent and week to begin.</p>
+            
+            <div class="form-group">
+                <label for="upcoming-parent-select">Select Parent:</label>
+                <select id="upcoming-parent-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="">-- Select a parent --</option>
+                    <!-- Parent options will be populated dynamically -->
+                </select>
+            </div>
             
             <div class="form-group">
                 <label for="upcoming-week-select">Select Week:</label>
-                <select id="upcoming-week-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="">-- Select a week --</option>
+                <select id="upcoming-week-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" disabled>
                     <option value="1">Next Week</option>
                     <option value="2">2 Weeks Ahead</option>
                     <option value="3">3 Weeks Ahead</option>
@@ -444,7 +451,7 @@
         </div>
         <div class="top-buttons">
             <button class="template-btn" id="open-template-modal">Set Weekly Template</button>
-            <button class="template-btn" id="open-upcoming-schedules" style="background-color: #9c27b0; color: white;">Upcoming Weeks Schedules</button>
+            <button class="template-btn" id="open-upcoming-schedules" style="background-color: #2b3990;">Upcoming Weeks Schedules</button>
             <button class="add-parent-btn" id="open-add-parent-modal">Add New Parent</button>
             <button class="logout-btn" onclick="handleLogout()">Logout</button>
         </div>
@@ -504,9 +511,7 @@
             // Event listeners for upcoming schedules modal
             document.getElementById('open-upcoming-schedules').addEventListener('click', () => {
                 document.getElementById('upcomingSchedulesModal').style.display = 'block';
-                // Clear any previous messages
-                document.getElementById('upcoming-modal-message').textContent = '';
-                document.getElementById('upcoming-success-message').textContent = '';
+                loadParentsForUpcomingSchedules();
             });
             
             document.getElementById('closeUpcomingModal').addEventListener('click', () => {
@@ -530,14 +535,30 @@
         }
         
         function setupUpcomingSchedulesModal() {
+            const parentSelect = document.getElementById('upcoming-parent-select');
             const weekSelect = document.getElementById('upcoming-week-select');
             const templateForm = document.getElementById('upcoming-template-form');
             
+            // Enable week select when parent is selected
+            parentSelect.addEventListener('change', function() {
+                if (this.value) {
+                    weekSelect.disabled = false;
+                    // Check if a week is already selected, if so, show the form
+                    if (weekSelect.value) {
+                        templateForm.style.display = 'block';
+                        loadUpcomingTemplate(parentSelect.value, weekSelect.value);
+                    }
+                } else {
+                    weekSelect.disabled = true;
+                    templateForm.style.display = 'none';
+                }
+            });
+            
             // Show template form when week is selected
             weekSelect.addEventListener('change', function() {
-                if (this.value) {
+                if (this.value && parentSelect.value) {
                     templateForm.style.display = 'block';
-                    loadUpcomingTemplate(null, weekSelect.value);
+                    loadUpcomingTemplate(parentSelect.value, weekSelect.value);
                 } else {
                     templateForm.style.display = 'none';
                 }
@@ -550,6 +571,50 @@
             document.getElementById('load-current-template-btn').addEventListener('click', loadCurrentTemplateForUpcoming);
         }
         
+        async function loadParentsForUpcomingSchedules() {
+            try {
+                // Clear any previous messages
+                document.getElementById('upcoming-modal-message').textContent = '';
+                document.getElementById('upcoming-success-message').textContent = '';
+                
+                // Get parents
+                const parents = await supabaseAuth.getParents();
+                
+                // Populate parent select
+                const parentSelect = document.getElementById('upcoming-parent-select');
+                parentSelect.innerHTML = '<option value="">-- Select a parent --</option>';
+                
+                if (parents && Array.isArray(parents)) {
+                    // Handle case where getParents might return array directly
+                    parents.forEach(parent => {
+                        const option = document.createElement('option');
+                        option.value = parent.id;
+                        option.textContent = getParentName(parent);
+                        parentSelect.appendChild(option);
+                    });
+                } else if (parents && parents.data && Array.isArray(parents.data)) {
+                    // Handle case where getParents returns { data: [...] }
+                    parents.data.forEach(parent => {
+                        const option = document.createElement('option');
+                        option.value = parent.id;
+                        option.textContent = getParentName(parent);
+                        parentSelect.appendChild(option);
+                    });
+                } else {
+                    console.warn('No parents found or invalid data format', parents);
+                    document.getElementById('upcoming-modal-message').textContent = 'No parents found.';
+                }
+                
+                // Reset form
+                document.getElementById('upcoming-week-select').disabled = true;
+                document.getElementById('upcoming-template-form').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error loading parents:', error);
+                document.getElementById('upcoming-modal-message').textContent = 'Error loading parents: ' + error.message;
+            }
+        }
+        
         async function loadUpcomingTemplate(parentId, weeksAhead) {
             try {
                 // Clear messages
@@ -559,8 +624,8 @@
                 // Clear form
                 clearUpcomingTemplateForm();
                 
-                // Get template if it exists (no need for parentId for global templates)
-                const result = await supabaseAuth.getUpcomingWeekTemplate(null, weeksAhead);
+                // Get template if it exists
+                const result = await supabaseAuth.getUpcomingWeekTemplate(parentId, weeksAhead);
                 
                 if (result && result.error) throw result.error;
                 
@@ -588,7 +653,13 @@
         
         async function saveUpcomingTemplate() {
             try {
+                const parentId = document.getElementById('upcoming-parent-select').value;
                 const weeksAhead = document.getElementById('upcoming-week-select').value;
+                
+                if (!parentId) {
+                    document.getElementById('upcoming-modal-message').textContent = 'Please select a parent.';
+                    return;
+                }
                 
                 if (!weeksAhead) {
                     document.getElementById('upcoming-modal-message').textContent = 'Please select a week.';
@@ -604,8 +675,8 @@
                     practice_content: document.getElementById('upcoming-practice-content').value
                 };
                 
-                // Save template (passing null for parentId as it's not needed for global templates)
-                const result = await supabaseAuth.saveUpcomingWeekTemplate(null, weeksAhead, templateData);
+                // Save template
+                const result = await supabaseAuth.saveUpcomingWeekTemplate(parentId, weeksAhead, templateData);
                 
                 if (result && result.error) throw result.error;
                 
@@ -619,26 +690,15 @@
         
         async function loadCurrentTemplateForUpcoming() {
             try {
-                // Get all parents to find one with a template
-                const parentsResult = await supabaseAuth.getParents();
+                const parentId = document.getElementById('upcoming-parent-select').value;
                 
-                // Extract parents array based on response format
-                let parents = [];
-                if (Array.isArray(parentsResult)) {
-                    parents = parentsResult;
-                } else if (parentsResult && parentsResult.data && Array.isArray(parentsResult.data)) {
-                    parents = parentsResult.data;
-                } else if (parentsResult && parentsResult.error) {
-                    throw parentsResult.error;
-                }
-                
-                if (!parents || parents.length === 0) {
-                    document.getElementById('upcoming-modal-message').textContent = 'No parents found to load template from.';
+                if (!parentId) {
+                    document.getElementById('upcoming-modal-message').textContent = 'Please select a parent.';
                     return;
                 }
                 
-                // Try to get template from first parent
-                const result = await supabaseAuth.getWeeklyTemplateForParent(parents[0].id);
+                // Get current week's template
+                const result = await supabaseAuth.getWeeklyTemplateForParent(parentId);
                 
                 if (result && result.error) throw result.error;
                 
@@ -647,15 +707,15 @@
                 
                 if (currentTemplate) {
                     // Populate form with current template
-                    document.getElementById('upcoming-weekly-song').value = currentTemplate.weeklySong || '';
-                    document.getElementById('upcoming-video-homework').value = currentTemplate.videoHomework || '';
-                    document.getElementById('upcoming-weekly-storybook').value = currentTemplate.weeklyStorybook || '';
-                    document.getElementById('upcoming-life-homework').value = currentTemplate.lifeHomework || '';
-                    document.getElementById('upcoming-practice-content').value = currentTemplate.practiceContent || '';
+                    document.getElementById('upcoming-weekly-song').value = currentTemplate.weekly_song || '';
+                    document.getElementById('upcoming-video-homework').value = currentTemplate.video_homework || '';
+                    document.getElementById('upcoming-weekly-storybook').value = currentTemplate.weekly_storybook || '';
+                    document.getElementById('upcoming-life-homework').value = currentTemplate.life_homework || '';
+                    document.getElementById('upcoming-practice-content').value = currentTemplate.practice_content || '';
                     
                     document.getElementById('upcoming-success-message').textContent = 'Current week\'s template loaded. Make changes as needed and save.';
                 } else {
-                    document.getElementById('upcoming-modal-message').textContent = 'No current week template found.';
+                    document.getElementById('upcoming-modal-message').textContent = 'No current week template found for this parent.';
                 }
                 
             } catch (error) {
@@ -764,11 +824,11 @@
                 
                 // Create template data object
                 const templateData = {
-                    weeklySong: weekly_song,
-                    videoHomework: video_homework,
-                    weeklyStorybook: weekly_storybook,
-                    lifeHomework: life_homework,
-                    practiceContent: practice_content,
+                    weekly_song,
+                    video_homework,
+                    weekly_storybook,
+                    life_homework,
+                    practice_content,
                     // Add current date
                     year: new Date().getFullYear().toString(),
                     month: (new Date().getMonth() + 1).toString(),
@@ -776,17 +836,9 @@
                 };
                 
                 // Get all parents
-                const parentsResult = await supabaseAuth.getParents();
+                const { data: parents, error } = await supabaseAuth.getParents();
                 
-                // Extract parents array based on response format
-                let parents = [];
-                if (Array.isArray(parentsResult)) {
-                    parents = parentsResult;
-                } else if (parentsResult && parentsResult.data && Array.isArray(parentsResult.data)) {
-                    parents = parentsResult.data;
-                } else if (parentsResult && parentsResult.error) {
-                    throw parentsResult.error;
-                }
+                if (error) throw error;
                 
                 // Success counter
                 let successCount = 0;
@@ -878,7 +930,7 @@
                 const parentListElement = document.getElementById('parent-list');
                 const emptyStateElement = document.getElementById('empty-state');
                 
-                // Get all parents
+                // Get all parents from Supabase
                 const parentsResult = await supabaseAuth.getParents();
                 
                 // Extract parents array based on response format
@@ -1020,11 +1072,13 @@
                 showLoading(true);
                 
                 // Get form values
-                const name = document.getElementById('parent-name').value.trim();
+                const firstName = document.getElementById('parent-first-name').value.trim();
+                const lastName = document.getElementById('parent-last-name').value.trim();
+                const email = document.getElementById('parent-email').value.trim();
                 const password = document.getElementById('parent-password').value;
                 
-                if (!name || !password) {
-                    throw new Error('Name and password are required.');
+                if (!firstName || !lastName || !password) {
+                    throw new Error('First name, last name, and password are required.');
                 }
                 
                 // Get Supabase client
@@ -1035,8 +1089,11 @@
                     .from('parents')
                     .insert([
                         {
-                            name: name,
-                            password: password
+                            first_name: firstName,
+                            last_name: lastName,
+                            email: email || null,
+                            password: password,
+                            name: `${firstName} ${lastName}` // For backward compatibility
                         }
                     ])
                     .select();
@@ -1044,7 +1101,7 @@
                 if (error) throw error;
                 
                 // Show success message
-                showSuccess(`Parent "${name}" added successfully`);
+                showSuccess(`Parent "${firstName} ${lastName}" added successfully`);
                 
                 // Close modal and reset form
                 document.getElementById('addParentModal').style.display = 'none';
@@ -1058,8 +1115,8 @@
                 
             } catch (error) {
                 console.error('Error adding parent:', error);
-                document.getElementById('modal-error-message').textContent = 'Error adding parent: ' + error.message;
-                document.getElementById('modal-error-message').style.display = 'block';
+                document.getElementById('modal-message').textContent = 'Error adding parent: ' + error.message;
+                document.getElementById('modal-message').style.display = 'block';
                 showLoading(false);
             }
         }
