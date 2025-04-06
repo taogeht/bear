@@ -443,9 +443,9 @@
                     // Set Chinese interface for parents - ALL elements
                     
                     // Header elements
-                    document.querySelector('.nav-title').textContent = '表单历史记录';
+                    document.querySelector('.nav-title').textContent = '表單歷史記錄';
                     document.querySelector('.back-btn').textContent = '返回';
-                    document.querySelector('.logout-btn').textContent = '退出登录';
+                    document.querySelector('.logout-btn').textContent = '登出';
                     document.querySelector('.parent-info').innerHTML = 'History for: <span id="parent-name">Loading...</span>';
                     document.querySelector('label[for="week-select"]').textContent = 'Select Week:';
                     document.querySelector('.print-button').textContent = 'Print Form';
@@ -559,10 +559,10 @@
                 const session = supabaseAuth.getSession();
                 const isParent = session && session.userType === 'parent';
                 
-                // Add default option
+                // Set default option
                 const defaultOption = document.createElement('option');
                 defaultOption.value = '';
-                defaultOption.textContent = isParent ? '选择一周...' : 'Select a week...';
+                defaultOption.textContent = isParent ? '選擇一週...' : 'Select a week...';
                 weekSelect.appendChild(defaultOption);
                 
                 if (data && data.length > 0) {
@@ -598,8 +598,8 @@
                     // No forms found
                     const option = document.createElement('option');
                     option.value = '';
-                    option.textContent = isParent ? '无表单数据' : 'No form data available';
                     option.disabled = true;
+                    option.textContent = isParent ? '無表單數據' : 'No form data available';
                     weekSelect.appendChild(option);
                 }
                 
@@ -629,14 +629,14 @@
                 if (data) {
                     displayFormData(data);
                 } else {
-                    showError('Form data not found for selected week.');
+                    showError('所選週的表單數據未找到。');
                     hideFormContent();
                 }
                 
                 showLoading(false);
             } catch (error) {
                 console.error('Error loading form data:', error);
-                showError('Error loading form data. Please try again.');
+                showError('載入表單數據時出錯，請重試。');
                 showLoading(false);
             }
         }
@@ -837,21 +837,20 @@
             const session = supabaseAuth.getSession();
             const isParent = session && session.userType === 'parent';
             
-            // If viewing as a parent and message is in English, translate common errors
-            if (isParent) {
-                // Map of English error messages to Chinese translations
-                const errorTranslations = {
-                    'Form data not found for selected week.': '所选周的表单数据未找到。',
-                    'Error loading form data. Please try again.': '加载表单数据时出错，请重试。',
-                    'No parent selected. Please go back and select a parent.': '未选择家长。请返回并选择一个家长。',
-                    'There was an error loading the form history. Please try refreshing the page.': '加载表单历史时出错。请刷新页面。',
-                    'Error loading form weeks. Please try again.': '加载周数据时出错。请重试。'
-                };
-                
-                // Translate if a translation exists
-                if (errorTranslations[message]) {
-                    message = errorTranslations[message];
-                }
+            // Map of English error messages to Traditional Chinese translations
+            const errorTranslations = {
+                'Form data not found for selected week.': '所選週的表單數據未找到。',
+                'Error loading form data. Please try again.': '載入表單數據時出錯，請重試。',
+                'No parent selected. Please go back and select a parent.': '未選擇家長。請返回並選擇一個家長。',
+                'There was an error loading the form history. Please try refreshing the page.': '載入表單歷史時出錯。請重新整理頁面。',
+                'Error loading form weeks. Please try again.': '載入週數據時出錯。請重試。',
+                'Form data is missing or invalid': '表單數據缺失或無效',
+                'Error displaying form data. Some elements are missing.': '顯示表單數據時出錯。某些元素缺失。'
+            };
+            
+            // Translate if a translation exists
+            if (errorTranslations[message]) {
+                message = errorTranslations[message];
             }
             
             errorElement.textContent = message;
