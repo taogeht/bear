@@ -418,12 +418,18 @@
         // Global variables
         let parentId = null;
         let parentName = null;
-        let weeksList = [];
+        let weeklyForms = [];
+        let notProvidedText = 'Not provided'; // Default value, will be updated based on user type
+        
+        document.addEventListener('DOMContentLoaded', initializeApp);
         
         // Auth check on page load
-        document.addEventListener('DOMContentLoaded', async function() {
+        async function initializeApp() {
             try {
                 const session = supabaseAuth.getSession();
+                
+                // Set language-specific text based on user type
+                notProvidedText = (session && session.userType === 'parent') ? '未提供' : 'Not provided';
                 
                 if (!session) {
                     // Not logged in, redirect to login
@@ -523,7 +529,7 @@
                 console.error('Error initializing history view:', error);
                 showError('There was an error loading the form history. Please try refreshing the page.');
             }
-        });
+        }
         
         // Load all weeks with form data for this parent
         async function loadFormWeeks() {
@@ -562,7 +568,7 @@
                 if (data && data.length > 0) {
                     // Store unique weeks
                     const uniqueWeeks = [...new Set(data.map(item => item.week_start))];
-                    weeksList = uniqueWeeks;
+                    weeklyForms = uniqueWeeks;
                     
                     // Populate dropdown
                     uniqueWeeks.forEach(week => {
@@ -671,11 +677,11 @@
             // Check user type for language
             const session = supabaseAuth.getSession();
             const isParent = session && session.userType === 'parent';
-            const notProvidedText = isParent ? '未提供' : 'Not provided';
+            const defaultText = isParent ? '未提供' : 'Not provided';
             
             // Helper function to convert mood rating to emoji
             function getMoodEmoji(rating) {
-                if (!rating) return notProvidedText;
+                if (!rating) return defaultText;
                 
                 const moodMap = {
                     '1': '😡',
@@ -690,7 +696,7 @@
             
             // Helper function for emoji ratings
             function getRatingEmoji(rating) {
-                if (!rating) return notProvidedText;
+                if (!rating) return defaultText;
                 
                 const ratingMap = {
                     '1': '😞',
@@ -702,7 +708,7 @@
             
             // Helper function for breakfast emoji
             function getBreakfastEmoji(rating) {
-                if (!rating) return notProvidedText;
+                if (!rating) return defaultText;
                 
                 const breakfastMap = {
                     '1': '😟',
@@ -714,36 +720,36 @@
                 return breakfastMap[rating] || rating;
             }
             
-            // Set values
-            setValue('teacher-mood', getMoodEmoji(formData.teacherMood));
-            setValue('weekly-song', formData.weeklySong);
-            setValue('video-homework', formData.videoHomework);
-            setValue('weekly-storybook', formData.weeklyStorybook);
-            setValue('life-homework', formData.lifeHomework);
-            setValue('practice-content', formData.practiceContent);
-            setValue('teacher-comments', formData.teacherComments);
-            setValue('teacher-name', formData.teacherName || '');
+            // Direct element setting to avoid using helper function
+            const setElementText = (id, value) => {
+                const element = document.getElementById(`${id}-value`);
+                if (element) {
+                    element.textContent = value || defaultText;
+                } else {
+                    console.error(`Element with ID ${id}-value not found`);
+                }
+            };
             
-            setValue('sleep-time', formData.sleepTime);
-            setValue('help-needed', formData.helpNeeded);
-            setValue('breakfast', getBreakfastEmoji(formData.breakfast));
-            setValue('watch', getRatingEmoji(formData.watch));
-            setValue('watch2', getRatingEmoji(formData.watch2));
-            setValue('todo', getRatingEmoji(formData.todo));
-            setValue('todo2', getRatingEmoji(formData.todo2));
-            setValue('parent-share', formData.parentShare);
-            setValue('parent-comments', formData.parentComments);
-            setValue('parent-name', formData.parentName || parentName);
-        }
-        
-        // Helper function to set element values with error handling
-        function setValue(elementId, value) {
-            const element = document.getElementById(`${elementId}-value`);
-            if (element) {
-                element.textContent = value || notProvidedText;
-            } else {
-                console.error(`Element with ID ${elementId}-value not found`);
-            }
+            // Set values directly
+            setElementText('teacher-mood', getMoodEmoji(formData.teacherMood));
+            setElementText('weekly-song', formData.weeklySong);
+            setElementText('video-homework', formData.videoHomework);
+            setElementText('weekly-storybook', formData.weeklyStorybook);
+            setElementText('life-homework', formData.lifeHomework);
+            setElementText('practice-content', formData.practiceContent);
+            setElementText('teacher-comments', formData.teacherComments);
+            setElementText('teacher-name', formData.teacherName || '');
+            
+            setElementText('sleep-time', formData.sleepTime);
+            setElementText('help-needed', formData.helpNeeded);
+            setElementText('breakfast', getBreakfastEmoji(formData.breakfast));
+            setElementText('watch', getRatingEmoji(formData.watch));
+            setElementText('watch2', getRatingEmoji(formData.watch2));
+            setElementText('todo', getRatingEmoji(formData.todo));
+            setElementText('todo2', getRatingEmoji(formData.todo2));
+            setElementText('parent-share', formData.parentShare);
+            setElementText('parent-comments', formData.parentComments);
+            setElementText('parent-name', formData.parentName || parentName);
         }
         
         // Hide form content
