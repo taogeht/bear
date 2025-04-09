@@ -611,145 +611,110 @@
             }
         }
         
-        // Load form data for a specific week
+        // Load form data for selected week
         async function loadFormForWeek(weekStart) {
             try {
                 showLoading(true);
                 
                 const supabase = await supabaseAuth.getSupabaseClient();
-                const { data, error } = await supabase
+                const { data: formData, error } = await supabase
                     .from('forms')
                     .select('*')
                     .eq('parent_id', parentId)
                     .eq('week_start', weekStart)
                     .single();
                 
-                if (error) throw error;
+                if (error) {
+                    throw error;
+                }
                 
-                if (data) {
-                    displayFormData(data);
+                if (formData) {
+                    // Show form content
+                    document.getElementById('form-content').style.display = 'block';
+                    document.getElementById('no-form-message').style.display = 'none';
+                    
+                    // Format date if year, month, and day are available
+                    if (formData.year && formData.month && formData.day) {
+                        const formDate = new Date(formData.year, formData.month - 1, formData.day);
+                        document.getElementById('form-date').textContent = 
+                            `${formData.year}/${formData.month}/${formData.day}`;
+                    } else {
+                        // If the form doesn't have specific date info, show the week start date
+                        const [year, month, day] = weekStart.split('-');
+                        document.getElementById('form-date').textContent = `${year}/${month}/${day}`;
+                    }
+                    
+                    // Update form header
+                    document.getElementById('form-title').textContent = `Weekly Communication Form`;
+                    document.getElementById('parent-name-value').textContent = parentName;
+                    
+                    // Helper function to convert rating to emoji
+                    function getEmojiForRating(rating) {
+                        if (!rating) return notProvidedText;
+                        
+                        const ratingMap = {
+                            '1': '😞',
+                            '2': '😔',
+                            '3': '😐',
+                            '4': '🙂',
+                            '5': '😄'
+                        };
+                        
+                        // For watch, todo and their variants which only have 3 values
+                        if (['1', '2', '3'].includes(rating)) {
+                            const watchTodoMap = {
+                                '1': '😞',
+                                '2': '😐',
+                                '3': '😊'
+                            };
+                            return watchTodoMap[rating] || notProvidedText;
+                        }
+                        
+                        return ratingMap[rating] || notProvidedText;
+                    }
+                    
+                    // Helper function to set text content with fallback
+                    function setTextContent(id, value) {
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.textContent = value || notProvidedText;
+                        } else {
+                            console.error(`Element not found: ${id}`);
+                        }
+                    }
+                    
+                    // Set teacher data
+                    setTextContent('teacher-mood-value', getMoodEmoji(formData.teacher_mood));
+                    setTextContent('weekly-song-value', formData.weekly_song);
+                    setTextContent('video-homework-value', formData.video_homework);
+                    setTextContent('weekly-storybook-value', formData.weekly_storybook);
+                    setTextContent('life-homework-value', formData.life_homework);
+                    setTextContent('practice-content-value', formData.practice_content);
+                    setTextContent('teacher-comments-value', formData.teacher_comments);
+                    setTextContent('teacher-name-value', formData.teacher_name);
+                    
+                    // Set parent data
+                    setTextContent('sleep-time-value', formData.sleep_time);
+                    setTextContent('help-needed-value', formData.help_needed);
+                    setTextContent('breakfast-value', getEmojiForRating(formData.breakfast));
+                    setTextContent('watch-value', getEmojiForRating(formData.watch));
+                    setTextContent('watch2-value', getEmojiForRating(formData.watch2));
+                    setTextContent('todo-value', getEmojiForRating(formData.todo));
+                    setTextContent('todo2-value', getEmojiForRating(formData.todo2));
+                    setTextContent('parent-share-value', formData.parent_share);
+                    setTextContent('parent-comments-value', formData.parent_comments);
                 } else {
-                    showError('所選週的表單數據未找到。');
+                    // No form data for this week
                     hideFormContent();
                 }
                 
                 showLoading(false);
             } catch (error) {
-                console.error('Error loading form data:', error);
-                showError('載入表單數據時出錯，請重試。');
+                console.error('Error loading form for week:', error);
+                showError('Error loading form data. Please try again.');
+                hideFormContent();
                 showLoading(false);
             }
-        }
-        
-        // Display form data
-        function displayFormData(formData) {
-            // Ensure formData is valid
-            if (!formData) {
-                console.error('No form data provided to display');
-                showError('Form data is missing or invalid');
-                return;
-            }
-            
-            // Get elements and check they exist
-            const formContentElement = document.getElementById('form-content');
-            const noFormMessageElement = document.getElementById('no-form-message');
-            const formDateElement = document.getElementById('form-date');
-            
-            if (!formContentElement || !noFormMessageElement) {
-                console.error('Required form content elements not found');
-                showError('Error displaying form data. Some elements are missing.');
-                return;
-            }
-            
-            // Show form content
-            formContentElement.style.display = 'block';
-            noFormMessageElement.style.display = 'none';
-            
-            // Format and display date
-            const dateStr = formData.year && formData.month && formData.day 
-                ? `${formData.year}-${formData.month}-${formData.day}`
-                : formData.week_start;
-            
-            if (formDateElement) {
-                formDateElement.textContent = formatDate(dateStr);
-            }
-            
-            // Check user type for language
-            const session = supabaseAuth.getSession();
-            const isParent = session && session.userType === 'parent';
-            const defaultText = isParent ? '未提供' : 'Not provided';
-            
-            // Helper function to convert mood rating to emoji
-            function getMoodEmoji(rating) {
-                if (!rating) return defaultText;
-                
-                const moodMap = {
-                    '1': '😡',
-                    '2': '😢',
-                    '3': '😴',
-                    '4': '😊',
-                    '5': '😃',
-                    '6': '🤩'
-                };
-                return moodMap[rating] || rating;
-            }
-            
-            // Helper function for emoji ratings
-            function getRatingEmoji(rating) {
-                if (!rating) return defaultText;
-                
-                const ratingMap = {
-                    '1': '😞',
-                    '2': '😐',
-                    '3': '😊'
-                };
-                return ratingMap[rating] || rating;
-            }
-            
-            // Helper function for breakfast emoji
-            function getBreakfastEmoji(rating) {
-                if (!rating) return defaultText;
-                
-                const breakfastMap = {
-                    '1': '😟',
-                    '2': '😞',
-                    '3': '😐',
-                    '4': '🙂',
-                    '5': '😄'
-                };
-                return breakfastMap[rating] || rating;
-            }
-            
-            // Direct element setting to avoid using helper function
-            const setElementText = (id, value) => {
-                const element = document.getElementById(`${id}-value`);
-                if (element) {
-                    element.textContent = value || defaultText;
-                } else {
-                    console.error(`Element with ID ${id}-value not found`);
-                }
-            };
-            
-            // Set values directly
-            setElementText('teacher-mood', getMoodEmoji(formData.teacherMood));
-            setElementText('weekly-song', formData.weeklySong);
-            setElementText('video-homework', formData.videoHomework);
-            setElementText('weekly-storybook', formData.weeklyStorybook);
-            setElementText('life-homework', formData.lifeHomework);
-            setElementText('practice-content', formData.practiceContent);
-            setElementText('teacher-comments', formData.teacherComments);
-            setElementText('teacher-name', formData.teacherName || '');
-            
-            setElementText('sleep-time', formData.sleepTime);
-            setElementText('help-needed', formData.helpNeeded);
-            setElementText('breakfast', getBreakfastEmoji(formData.breakfast));
-            setElementText('watch', getRatingEmoji(formData.watch));
-            setElementText('watch2', getRatingEmoji(formData.watch2));
-            setElementText('todo', getRatingEmoji(formData.todo));
-            setElementText('todo2', getRatingEmoji(formData.todo2));
-            setElementText('parent-share', formData.parentShare);
-            setElementText('parent-comments', formData.parentComments);
-            setElementText('parent-name', formData.parentName || parentName);
         }
         
         // Hide form content
@@ -770,10 +735,29 @@
             }
         }
         
+        // Helper function to get mood emoji
+        function getMoodEmoji(mood) {
+            if (!mood) return 'Not provided';
+            
+            const moodMap = {
+                '1': '😡',
+                '2': '😢',
+                '3': '😴',
+                '4': '😊',
+                '5': '😃',
+                '6': '🤩'
+            };
+            
+            return moodMap[mood] || 'Not provided';
+        }
+        
         // Format date helper
         function formatDate(dateStr) {
             try {
+                // Parse the date string and adjust for GMT+8
                 const date = new Date(dateStr);
+                // Add GMT+8 offset (8 hours in milliseconds)
+                const gmtPlus8Date = new Date(date.getTime() + (8 * 60 * 60 * 1000));
                 
                 // Check user type for language
                 const session = supabaseAuth.getSession();
@@ -781,16 +765,17 @@
                 
                 if (isParent) {
                     // Chinese date format: YYYY年MM月DD日
-                    const year = date.getFullYear();
-                    const month = date.getMonth() + 1;
-                    const day = date.getDate();
+                    const year = gmtPlus8Date.getFullYear();
+                    const month = gmtPlus8Date.getMonth() + 1;
+                    const day = gmtPlus8Date.getDate();
                     return `${year}年${month}月${day}日`;
                 } else {
                     // English date format
-                    return date.toLocaleDateString('en-US', { 
+                    return gmtPlus8Date.toLocaleDateString('en-US', { 
                         year: 'numeric', 
                         month: 'long', 
-                        day: 'numeric' 
+                        day: 'numeric',
+                        timeZone: 'Asia/Hong_Kong' // Ensure date is displayed in Hong Kong timezone (GMT+8)
                     });
                 }
             } catch (e) {

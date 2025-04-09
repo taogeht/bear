@@ -471,9 +471,11 @@
                 
                 // Set current date if not editing an existing form
                 const now = new Date();
-                document.getElementById('year').value = now.getFullYear();
-                document.getElementById('month').value = now.getMonth() + 1;
-                document.getElementById('day').value = now.getDate();
+                // Adjust for GMT+8 timezone
+                const gmtPlus8Now = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+                document.getElementById('year').value = gmtPlus8Now.getFullYear();
+                document.getElementById('month').value = gmtPlus8Now.getMonth() + 1;
+                document.getElementById('day').value = gmtPlus8Now.getDate();
                 
                 // Load existing form data if available
                 await loadFormData(parentId);
@@ -494,6 +496,11 @@
                 // Form submission
                 document.getElementById('save-btn').addEventListener('click', saveForm);
                 
+                // Add event listeners for date changes
+                document.getElementById('year').addEventListener('change', reloadFormForDate);
+                document.getElementById('month').addEventListener('change', reloadFormForDate);
+                document.getElementById('day').addEventListener('change', reloadFormForDate);
+                
             } catch (error) {
                 console.error('Error initializing form:', error);
                 showError('There was an error loading the form. Please try refreshing the page.');
@@ -503,36 +510,128 @@
         // Load form data from database
         async function loadFormData(parentId) {
             try {
+                console.log('Loading form data for parent ID:', parentId);
                 showLoading(true);
                 
-                // Get the current week's form data
-                const weekStart = supabaseAuth.getWeekStartDate();
-                console.log('Loading form for week:', weekStart);
+                // Get the year, month, day from the form if they exist
+                const yearInput = document.getElementById('year');
+                const monthInput = document.getElementById('month');
+                const dayInput = document.getElementById('day');
                 
-                // Get form data from Supabase using parent ID and week
-                const supabase = await getSupabaseClient();
-                const { data: formData, error } = await supabase
+                // Use the current week's start date from supabaseAuth
+                const weekStart = supabaseAuth.getWeekStartDate();
+                console.log('Using current week start date:', weekStart);
+                
+                // Direct database query
+                const supabase = await supabaseAuth.getSupabaseClient();
+                console.log(`Directly querying forms table for parent_id=${parentId} and week_start=${weekStart}`);
+                
+                const { data: forms, error } = await supabase
                     .from('forms')
                     .select('*')
                     .eq('parent_id', parentId)
-                    .eq('week_start', weekStart)
-                    .single();
+                    .eq('week_start', weekStart);
                 
-                if (error && error.code !== 'PGRST116') { // PGRST116 is "row not found" error
+                if (error) {
+                    console.error('Error querying forms:', error);
                     throw error;
                 }
                 
+                console.log('Query results:', forms);
+                
                 // Store current form
-                currentForm = formData || null;
+                const formData = forms && forms.length > 0 ? forms[0] : null;
+                currentForm = formData;
                 
                 if (formData) {
-                    console.log('Found existing form:', formData);
-                    // Populate form with data
-                    populateFormData(formData);
+                    console.log('Found existing form with ID:', formData.id);
+                    
+                    // Log form data to console in a way that ensures all properties are visible
+                    const formDataStr = JSON.stringify(formData, null, 2);
+                    console.log('Form data:', formDataStr);
+                    
+                    // Set date values
+                    if (formData.year) yearInput.value = formData.year;
+                    if (formData.month) monthInput.value = formData.month;
+                    if (formData.day) dayInput.value = formData.day;
+                    
+                    // Set teacher mood
+                    if (formData.teachermood) {
+                        const moodEmoji = document.querySelector(`.mood-emoji[data-value="${formData.teachermood}"]`);
+                        if (moodEmoji) moodEmoji.classList.add('selected');
+                    }
+                    
+                    // Set teacher fields
+                    document.getElementById('weekly-song').value = formData.weeklysong || '';
+                    document.getElementById('video-homework').value = formData.videohomework || '';
+                    document.getElementById('weekly-storybook').value = formData.weeklystorybook || '';
+                    document.getElementById('life-homework').value = formData.lifehomework || '';
+                    document.getElementById('practice-content').value = formData.practicecontent || '';
+                    document.getElementById('teacher-comments').value = formData.teachercomments || '';
+                    
+                    // Set parent data displays
+                    document.getElementById('sleep-time-display').textContent = formData.sleeptime || 'Not provided';
+                    document.getElementById('help-needed-display').textContent = formData.helpneeded || 'Not provided';
+                    
+                    // Helper function for emoji ratings
+                    function getEmojiForRating(rating) {
+                        if (!rating) return 'Not provided';
+                        
+                        const ratingMap = {
+                            '1': '😞',
+                            '2': '😔',
+                            '3': '😐',
+                            '4': '🙂',
+                            '5': '😄'
+                        };
+                        
+                        // For watch, todo and their variants which only have 3 values
+                        if (['1', '2', '3'].includes(rating)) {
+                            const watchTodoMap = {
+                                '1': '😞',
+                                '2': '😐',
+                                '3': '😊'
+                            };
+                            return watchTodoMap[rating] || 'Not provided';
+                        }
+                        
+                        return ratingMap[rating] || 'Not provided';
+                    }
+                    
+                    // Display emoji ratings
+                    document.getElementById('breakfast-display').textContent = formData.breakfast ? getEmojiForRating(formData.breakfast) : 'Not provided';
+                    document.getElementById('watch-display').textContent = formData.watch ? getEmojiForRating(formData.watch) : 'Not provided';
+                    document.getElementById('watch2-display').textContent = formData.watch2 ? getEmojiForRating(formData.watch2) : 'Not provided';
+                    document.getElementById('todo-display').textContent = formData.todo ? getEmojiForRating(formData.todo) : 'Not provided';
+                    document.getElementById('todo2-display').textContent = formData.todo2 ? getEmojiForRating(formData.todo2) : 'Not provided';
+                    
+                    // Display parent comments
+                    document.getElementById('parent-share-display').textContent = formData.parentshare || 'Not provided';
+                    document.getElementById('parent-comments-display').textContent = formData.parentcomments || 'Not provided';
                 } else {
                     console.log('No existing form found, creating new one');
+                    // When no form exists for the selected week, update the date inputs to match the week's Monday
+                    const weekStartDate = new Date(weekStart);
+                    yearInput.value = weekStartDate.getFullYear();
+                    monthInput.value = weekStartDate.getMonth() + 1; // +1 because getMonth is 0-indexed
+                    dayInput.value = weekStartDate.getDate() + 1; // Set to Monday (day after Sunday)
+                    
+                    // Clear any previous form data
                     document.querySelectorAll('.parent-data').forEach(el => {
                         el.textContent = 'No data submitted yet';
+                    });
+                    
+                    // Clear teacher inputs
+                    document.getElementById('weekly-song').value = '';
+                    document.getElementById('video-homework').value = '';
+                    document.getElementById('weekly-storybook').value = '';
+                    document.getElementById('life-homework').value = '';
+                    document.getElementById('practice-content').value = '';
+                    document.getElementById('teacher-comments').value = '';
+                    
+                    // Clear mood selection
+                    document.querySelectorAll('.mood-emoji').forEach(el => {
+                        el.classList.remove('selected');
                     });
                 }
                 
@@ -544,68 +643,6 @@
             }
         }
         
-        // Populate form with data
-        function populateFormData(formData) {
-            // Set date
-            if (formData.year) document.getElementById('year').value = formData.year;
-            if (formData.month) document.getElementById('month').value = formData.month;
-            if (formData.day) document.getElementById('day').value = formData.day;
-            
-            // Set teacher mood
-            if (formData.teacherMood) {
-                const moodEmoji = document.querySelector(`.mood-emoji[data-value="${formData.teacherMood}"]`);
-                if (moodEmoji) moodEmoji.classList.add('selected');
-            }
-            
-            // Set teacher content
-            document.getElementById('weekly-song').value = formData.weeklySong || '';
-            document.getElementById('video-homework').value = formData.videoHomework || '';
-            document.getElementById('weekly-storybook').value = formData.weeklyStorybook || '';
-            document.getElementById('life-homework').value = formData.lifeHomework || '';
-            document.getElementById('practice-content').value = formData.practiceContent || '';
-            document.getElementById('teacher-comments').value = formData.teacherComments || '';
-            
-            // Display parent data
-            document.getElementById('sleep-time-display').textContent = formData.sleepTime || 'Not provided';
-            document.getElementById('help-needed-display').textContent = formData.helpNeeded || 'Not provided';
-            
-            // Helper function to convert rating to emoji
-            function getEmojiForRating(rating) {
-                if (!rating) return 'Not provided';
-                
-                const ratingMap = {
-                    '1': '😞',
-                    '2': '😔',
-                    '3': '😐',
-                    '4': '🙂',
-                    '5': '😄'
-                };
-                
-                // For watch, todo and their variants which only have 3 values
-                if (['1', '2', '3'].includes(rating)) {
-                    const watchTodoMap = {
-                        '1': '😞',
-                        '2': '😐',
-                        '3': '😊'
-                    };
-                    return watchTodoMap[rating] || 'Not provided';
-                }
-                
-                return ratingMap[rating] || 'Not provided';
-            }
-            
-            // Display emoji ratings
-            document.getElementById('breakfast-display').textContent = formData.breakfast ? getEmojiForRating(formData.breakfast) : 'Not provided';
-            document.getElementById('watch-display').textContent = formData.watch ? getEmojiForRating(formData.watch) : 'Not provided';
-            document.getElementById('watch2-display').textContent = formData.watch2 ? getEmojiForRating(formData.watch2) : 'Not provided';
-            document.getElementById('todo-display').textContent = formData.todo ? getEmojiForRating(formData.todo) : 'Not provided';
-            document.getElementById('todo2-display').textContent = formData.todo2 ? getEmojiForRating(formData.todo2) : 'Not provided';
-            
-            // Display text areas
-            document.getElementById('parent-share-display').textContent = formData.parentShare || 'Not provided';
-            document.getElementById('parent-comments-display').textContent = formData.parentComments || 'Not provided';
-        }
-        
         // Save form
         async function saveForm() {
             try {
@@ -614,35 +651,54 @@
                     return;
                 }
                 
+                console.log('----------- FORM SUBMISSION START -----------');
                 console.log('Attempting to save form for parent ID:', parentId);
+                console.log('Current form data:', currentForm);
                 showLoading(true);
                 
                 // Collect data from form with null checks to handle missing elements
+                // Use lowercase field names to match the database schema
                 const formData = {
                     year: document.getElementById('year')?.value || '',
                     month: document.getElementById('month')?.value || '',
                     day: document.getElementById('day')?.value || '',
-                    teacherMood: document.querySelector('.mood-emoji.selected')?.getAttribute('data-value') || '',
-                    weeklySong: document.getElementById('weekly-song')?.value || '',
-                    videoHomework: document.getElementById('video-homework')?.value || '',
-                    weeklyStorybook: document.getElementById('weekly-storybook')?.value || '',
-                    lifeHomework: document.getElementById('life-homework')?.value || '',
-                    practiceContent: document.getElementById('practice-content')?.value || '',
-                    teacherComments: document.getElementById('teacher-comments')?.value || ''
+                    teachermood: document.querySelector('.mood-emoji.selected')?.getAttribute('data-value') || '',
+                    weeklysong: document.getElementById('weekly-song')?.value || '',
+                    videohomework: document.getElementById('video-homework')?.value || '',
+                    weeklystorybook: document.getElementById('weekly-storybook')?.value || '',
+                    lifehomework: document.getElementById('life-homework')?.value || '',
+                    practicecontent: document.getElementById('practice-content')?.value || '',
+                    teachercomments: document.getElementById('teacher-comments')?.value || ''
                 };
                 
                 // Preserve parent data if it exists
                 if (currentForm) {
                     console.log('Including existing parent data from current form');
-                    formData.sleepTime = currentForm.sleepTime || '';
-                    formData.helpNeeded = currentForm.helpNeeded || '';
+                    
+                    // Use lowercase field names to match the database schema
+                    formData.sleeptime = currentForm.sleeptime || '';
+                    formData.helpneeded = currentForm.helpneeded || '';
                     formData.breakfast = currentForm.breakfast || '';
                     formData.watch = currentForm.watch || '';
                     formData.watch2 = currentForm.watch2 || '';
                     formData.todo = currentForm.todo || '';
                     formData.todo2 = currentForm.todo2 || '';
-                    formData.parentShare = currentForm.parentShare || '';
-                    formData.parentComments = currentForm.parentComments || '';
+                    formData.parentshare = currentForm.parentshare || '';
+                    formData.parentcomments = currentForm.parentcomments || '';
+                } else {
+                    console.log('No existing form data found, creating new form with only teacher data');
+                }
+                
+                // Add required fields
+                const weekStart = supabaseAuth.getWeekStartDate();
+                formData.parent_id = parentId;
+                formData.week_start = weekStart;
+                formData.updated_at = new Date().toISOString();
+                
+                // Get teacher ID from session if available
+                const userSession = supabaseAuth.getSession();
+                if (userSession && userSession.userType === 'teacher' && userSession.id) {
+                    formData.teacher_id = userSession.id;
                 }
                 
                 // Debug log form data
@@ -657,9 +713,50 @@
                 }
                 
                 try {
-                    // Try to save the form data
-                    const result = await supabaseAuth.saveForm(parentId, formData, true);
-                    console.log('Form saved successfully:', result);
+                    // Direct Supabase query
+                    const supabase = await supabaseAuth.getSupabaseClient();
+                    
+                    // Check if form already exists
+                    const { data: existingForms, error: checkError } = await supabase
+                        .from('forms')
+                        .select('id')
+                        .eq('parent_id', parentId)
+                        .eq('week_start', weekStart);
+                    
+                    if (checkError) {
+                        console.error('Error checking for existing form:', checkError);
+                        throw checkError;
+                    }
+                    
+                    let result;
+                    
+                    if (existingForms && existingForms.length > 0) {
+                        // Update existing form
+                        const formId = existingForms[0].id;
+                        console.log('Updating existing form with ID:', formId);
+                        
+                        const { data, error } = await supabase
+                            .from('forms')
+                            .update(formData)
+                            .eq('id', formId)
+                            .select();
+                        
+                        if (error) throw error;
+                        result = data;
+                    } else {
+                        // Insert new form
+                        console.log('Creating new form');
+                        
+                        const { data, error } = await supabase
+                            .from('forms')
+                            .insert([formData])
+                            .select();
+                        
+                        if (error) throw error;
+                        result = data;
+                    }
+                    
+                    console.log('Form saved successfully, server response:', result);
                     
                     showSuccess('Form saved successfully!');
                     
@@ -680,6 +777,7 @@
                     }
                 }
                 
+                console.log('----------- FORM SUBMISSION END -----------');
                 showLoading(false);
             } catch (error) {
                 console.error('Error saving form:', error);
@@ -746,6 +844,27 @@
         // Get Supabase client
         async function getSupabaseClient() {
             return await supabaseAuth.getSupabaseClient();
+        }
+        
+        // Function to reload the form when date changes
+        async function reloadFormForDate() {
+            if (!parentId) {
+                showError('No parent selected. Please go back and select a parent.');
+                return;
+            }
+            
+            // Display a loading message
+            showLoading(true);
+            
+            // Get the currently selected date values
+            const year = document.getElementById('year').value;
+            const month = document.getElementById('month').value;
+            const day = document.getElementById('day').value;
+            
+            console.log(`Date changed to: ${year}-${month}-${day}`);
+            
+            // Load form data with the new date
+            await loadFormData(parentId);
         }
     </script>
 </body>

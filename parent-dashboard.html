@@ -188,6 +188,7 @@
         <div class="welcome-message">
             <h2>Welcome, <span id="parent-name">Loading...</span></h2>
             <p>This is your dashboard for the weekly communication form.</p>
+            <p>這是您的每週通訊表的儀表板。</p>
         </div>
         
         <div id="current-week-status" class="form-status">
@@ -196,7 +197,7 @@
         </div>
         
         <div class="action-buttons">
-            <button class="btn btn-primary" id="new-form-btn">Submit Weekly Form / 提交本周的溝通表</button>
+            <button class="btn btn-primary" id="new-form-btn">View or Submit Weekly Form / 查看或提交本周的溝通表</button>
             <button class="btn btn-secondary" id="view-history-btn">View History / 查看歷史</button>
         </div>
     </div>
@@ -267,7 +268,6 @@
                 `;
             } else {
                 statusElement.innerHTML = `
-                    <strong>Status:</strong> You have submitted your form. Waiting for teacher input.<br>
                     <strong>Submitted on:</strong> ${new Date(formData.updated_at).toLocaleString()}<br>
                 `;
             }

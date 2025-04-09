@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Upcoming Template</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Upcoming Week Template</h1>
+    
+    <div>
+        <button id="create-template">Create Template for Next Week</button>
+        <button id="get-template">Get Template for Next Week</button>
+    </div>
+    
+    <h2>Result:</h2>
+    <pre id="result">Click a button to see results...</pre>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Define template data
+            const templateData = {
+                weeklysong: "Test Weekly Song",
+                videohomework: "Test Video Homework",
+                weeklystorybook: "Test Weekly Storybook",
+                lifehomework: "Test Life Homework",
+                practicecontent: "Test Practice Content"
+            };
+            
+            // Get week start date for display
+            const weekStart = supabaseAuth.getWeekStartDate();
+            document.getElementById('result').textContent = `Current week starts on: ${weekStart}`;
+            
+            // Button to create template for next week
+            document.getElementById('create-template').addEventListener('click', async () => {
+                try {
+                    document.getElementById('result').textContent = 'Creating template...';
+                    
+                    // Get a dummy parent ID (just for the function signature)
+                    const parentId = '00000000-0000-0000-0000-000000000000';
+                    
+                    // Save template for next week (weeksAhead = 2)
+                    const result = await supabaseAuth.saveUpcomingWeekTemplate(parentId, 2, templateData);
+                    
+                    document.getElementById('result').innerHTML = '<span class="success">Template created successfully!</span>\n\n' + 
+                        JSON.stringify(result, null, 2);
+                } catch (error) {
+                    document.getElementById('result').innerHTML = '<span class="error">Error creating template:</span>\n\n' + 
+                        error.toString() + '\n\n' + 
+                        (error.stack || '');
+                }
+            });
+            
+            // Button to get template for next week
+            document.getElementById('get-template').addEventListener('click', async () => {
+                try {
+                    document.getElementById('result').textContent = 'Getting template...';
+                    
+                    // Get a dummy parent ID (just for the function signature)
+                    const parentId = '00000000-0000-0000-0000-000000000000';
+                    
+                    // Get template for next week (weeksAhead = 2)
+                    const template = await supabaseAuth.getUpcomingWeekTemplate(parentId, 2);
+                    
+                    document.getElementById('result').innerHTML = '<span class="success">Template retrieved successfully!</span>\n\n' + 
+                        JSON.stringify(template, null, 2);
+                } catch (error) {
+                    document.getElementById('result').innerHTML = '<span class="error">Error getting template:</span>\n\n' + 
+                        error.toString() + '\n\n' + 
+                        (error.stack || '');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

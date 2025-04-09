@@ -235,14 +235,29 @@ const supabaseAuth = {
         window.location.href = 'index.html';
     },
 
-    // Get the start date of the current week (Sunday)
+    // Function to get the current week's start date in YYYY-MM-DD format
     getWeekStartDate: function() {
+        // Get current date
         const now = new Date();
-        const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-        const diff = now.getDate() - day;
-        const weekStart = new Date(now.setDate(diff));
+        
+        // Get the day of the week (0 = Sunday, 1 = Monday, etc.)
+        const day = now.getDay();
+        
+        // Calculate how many days we need to go back to reach Monday
+        // If today is Monday (day=1), diff will be 0
+        // If today is Tuesday (day=2), diff will be -1, etc.
+        const diff = now.getDate() - (day - 1);
+        
+        // Create a new date for the Monday that starts this week
+        // If today is Sunday (day=0), we need to go to the next day for Monday
+        const weekStart = new Date(now);
+        weekStart.setDate(day === 0 ? diff + 1 : diff);
         weekStart.setHours(0, 0, 0, 0);
-        return weekStart.toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        // Format as YYYY-MM-DD
+        return weekStart.getFullYear() + '-' + 
+               String(weekStart.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(weekStart.getDate()).padStart(2, '0');
     },
 
     // Get all parents (for teacher dashboard)
@@ -270,7 +285,22 @@ const supabaseAuth = {
     getParentForm: async function(parentId) {
         try {
             const weekStart = this.getWeekStartDate();
+            return await this.getParentFormForDate(parentId, weekStart);
+        } catch (error) {
+            console.error('Error getting form:', error);
+            throw error;
+        }
+    },
+
+    // Get form data for a specific parent for a specific date
+    getParentFormForDate: async function(parentId, weekStart) {
+        try {
+            if (!parentId) throw new Error('Parent ID is required');
+            if (!weekStart) throw new Error('Week start date is required');
+            
             const supabase = await this.getSupabaseClient();
+            
+            console.log(`Querying forms for parent_id=${parentId} and week_start=${weekStart}`);
             
             const { data, error } = await supabase
                 .from('forms')
@@ -279,27 +309,66 @@ const supabaseAuth = {
                 .eq('week_start', weekStart);
             
             if (error) {
+                console.error('Error fetching form:', error);
                 throw error;
             }
             
             // Return the first form if multiple exist, or null if none
-            return data && data.length > 0 ? data[0] : null;
+            if (data && data.length > 0) {
+                const formData = data[0];
+                console.log('Form data retrieved successfully:', JSON.stringify(formData, null, 2));
+                
+                // Create a new object with all properties to avoid reference issues
+                const formDataCopy = { ...formData };
+                return formDataCopy;
+            } else {
+                console.log('No form found for parent ID', parentId, 'with week_start', weekStart);
+                return null;
+            }
         } catch (error) {
-            console.error('Error getting form:', error);
+            console.error('Error getting form for date:', error);
             throw error;
         }
     },
 
-    // Save form data to Supabase
-    saveForm: async function(parentId, formData, isTeacherForm = false) {
+    // Check if fields were saved correctly
+    _checkSavedFields: function(data, savedData, fieldsToSave) {
+        const missingFields = [];
+        
+        for (const field of fieldsToSave) {
+            // Skip non-essential fields
+            if (['year', 'month', 'day', 'breakfast', 'watch', 'watch2', 'todo', 'todo2'].includes(field)) {
+                continue;
+            }
+            
+            // Check if field was saved
+            if (data[field] !== undefined && data[field] !== null) {
+                if (!savedData[field] || savedData[field].toString() !== data[field].toString()) {
+                    missingFields.push(field);
+                    console.log(`Field ${field} not saved correctly. Expected: ${data[field]}, Got: ${savedData[field]}`);
+                }
+            }
+        }
+        
+        return missingFields;
+    },
+
+    // Save form for a specific date
+    saveFormForDate: async function(parentId, formData, weekStart, isTeacherForm = false) {
         try {
-            console.log('saveForm called with parentId:', parentId, 'isTeacherForm:', isTeacherForm);
+            console.log('------------- SAVE FORM FOR DATE START -------------');
+            console.log('saveFormForDate called with parentId:', parentId, 'isTeacherForm:', isTeacherForm);
+            console.log('Week start date:', weekStart);
+            console.log('Form data received:', JSON.stringify(formData, null, 2));
             
             if (!parentId) {
                 throw new Error('Parent ID is required');
             }
             
-            const weekStart = this.getWeekStartDate();
+            if (!weekStart) {
+                throw new Error('Week start date is required');
+            }
+            
             const supabase = await this.getSupabaseClient();
             
             // Check if a form already exists for this parent and week
@@ -310,13 +379,14 @@ const supabaseAuth = {
             try {
                 const { data, error } = await supabase
                     .from('forms')
-                    .select('id')
+                    .select('*')
                     .eq('parent_id', parentId)
                     .eq('week_start', weekStart)
                     .single();
                 
                 if (data) {
                     existingForm = data;
+                    console.log('Found existing form:', JSON.stringify(existingForm, null, 2));
                 } else if (error && error.code !== 'PGRST116') { // PGRST116 is "row not found" error
                     console.error('Error checking for existing form:', error);
                     // Don't throw here, we'll try to create a new form if needed
@@ -328,6 +398,7 @@ const supabaseAuth = {
             const userSession = this.getSession();
             const userId = userSession?.id || null;
             const userType = userSession?.userType || null;
+            console.log('User session info - ID:', userId, 'Type:', userType);
             
             console.log('Building form data object');
             const data = {
@@ -335,6 +406,9 @@ const supabaseAuth = {
                 parent_id: parentId,
                 updated_at: new Date().toISOString(),
             };
+            
+            // Create a record of all fields we're trying to save for later verification
+            const fieldsToSave = new Set();
             
             // Add correct fields based on who is submitting
             if (isTeacherForm) {
@@ -353,84 +427,217 @@ const supabaseAuth = {
                     console.log('No teacher ID available or user not a teacher');
                 }
                 
-                // Add the form data fields
-                Object.assign(data, {
-                    year: formData.year || '',
-                    month: formData.month || '',
-                    day: formData.day || '',
-                    teacherMood: formData.teacherMood || '',
-                    weeklySong: formData.weeklySong || '',
-                    videoHomework: formData.videoHomework || '',
-                    weeklyStorybook: formData.weeklyStorybook || '',
-                    lifeHomework: formData.lifeHomework || '',
-                    practiceContent: formData.practiceContent || '',
-                    teacherComments: formData.teacherComments || ''
-                });
+                // Add the form data fields - use lowercase only
+                if (formData.year) {
+                    data.year = formData.year;
+                    fieldsToSave.add('year');
+                }
+                if (formData.month) {
+                    data.month = formData.month;
+                    fieldsToSave.add('month');
+                }
+                if (formData.day) {
+                    data.day = formData.day;
+                    fieldsToSave.add('day');
+                }
                 
-                // Preserve parent data if it exists
-                if (formData.sleepTime) data.sleepTime = formData.sleepTime;
-                if (formData.helpNeeded) data.helpNeeded = formData.helpNeeded;
-                if (formData.breakfast) data.breakfast = formData.breakfast;
-                if (formData.watch) data.watch = formData.watch;
-                if (formData.watch2) data.watch2 = formData.watch2;
-                if (formData.todo) data.todo = formData.todo;
-                if (formData.todo2) data.todo2 = formData.todo2;
-                if (formData.parentShare) data.parentShare = formData.parentShare;
-                if (formData.parentComments) data.parentComments = formData.parentComments;
+                // Always set these fields when applying a template (isTeacherForm=true)
+                // even if they're empty strings, to ensure overwriting any existing values
+                data.teachermood = formData.teachermood || '';
+                fieldsToSave.add('teachermood');
+                
+                data.weeklysong = formData.weeklysong || '';
+                fieldsToSave.add('weeklysong');
+                
+                data.videohomework = formData.videohomework || '';
+                fieldsToSave.add('videohomework');
+                
+                data.weeklystorybook = formData.weeklystorybook || '';
+                fieldsToSave.add('weeklystorybook');
+                
+                data.lifehomework = formData.lifehomework || '';
+                fieldsToSave.add('lifehomework');
+                
+                data.practicecontent = formData.practicecontent || '';
+                fieldsToSave.add('practicecontent');
+                
+                data.teachercomments = formData.teachercomments || '';
+                fieldsToSave.add('teachercomments');
+                
+                // Preserve parent data if it exists - use lowercase only
+                if (formData.sleeptime) {
+                    data.sleeptime = formData.sleeptime;
+                    fieldsToSave.add('sleeptime');
+                }
+                if (formData.helpneeded) {
+                    data.helpneeded = formData.helpneeded;
+                    fieldsToSave.add('helpneeded');
+                }
+                if (formData.breakfast) {
+                    data.breakfast = formData.breakfast;
+                    fieldsToSave.add('breakfast');
+                }
+                if (formData.watch) {
+                    data.watch = formData.watch;
+                    fieldsToSave.add('watch');
+                }
+                if (formData.watch2) {
+                    data.watch2 = formData.watch2;
+                    fieldsToSave.add('watch2');
+                }
+                if (formData.todo) {
+                    data.todo = formData.todo;
+                    fieldsToSave.add('todo');
+                }
+                if (formData.todo2) {
+                    data.todo2 = formData.todo2;
+                    fieldsToSave.add('todo2');
+                }
+                if (formData.parentshare) {
+                    data.parentshare = formData.parentshare;
+                    fieldsToSave.add('parentshare');
+                }
+                if (formData.parentcomments) {
+                    data.parentcomments = formData.parentcomments;
+                    fieldsToSave.add('parentcomments');
+                }
             } else {
                 console.log('Adding parent form fields');
-                // Parent is updating
-                Object.assign(data, {
-                    sleepTime: formData.sleepTime || '',
-                    helpNeeded: formData.helpNeeded || '',
-                    breakfast: formData.breakfast || '',
-                    watch: formData.watch || '',
-                    watch2: formData.watch2 || '',
-                    todo: formData.todo || '',
-                    todo2: formData.todo2 || '',
-                    parentShare: formData.parentShare || '',
-                    parentComments: formData.parentComments || ''
-                });
+                // Parent is updating - use lowercase only
+                if (formData.sleeptime) {
+                    data.sleeptime = formData.sleeptime;
+                    fieldsToSave.add('sleeptime');
+                }
+                if (formData.helpneeded) {
+                    data.helpneeded = formData.helpneeded;
+                    fieldsToSave.add('helpneeded');
+                }
+                if (formData.breakfast) {
+                    data.breakfast = formData.breakfast;
+                    fieldsToSave.add('breakfast');
+                }
+                if (formData.watch) {
+                    data.watch = formData.watch;
+                    fieldsToSave.add('watch');
+                }
+                if (formData.watch2) {
+                    data.watch2 = formData.watch2;
+                    fieldsToSave.add('watch2');
+                }
+                if (formData.todo) {
+                    data.todo = formData.todo;
+                    fieldsToSave.add('todo');
+                }
+                if (formData.todo2) {
+                    data.todo2 = formData.todo2;
+                    fieldsToSave.add('todo2');
+                }
+                if (formData.parentshare) {
+                    data.parentshare = formData.parentshare;
+                    fieldsToSave.add('parentshare');
+                }
+                if (formData.parentcomments) {
+                    data.parentcomments = formData.parentcomments;
+                    fieldsToSave.add('parentcomments');
+                }
                 
-                // Preserve teacher data if it exists
-                if (formData.year) data.year = formData.year;
-                if (formData.month) data.month = formData.month;
-                if (formData.day) data.day = formData.day;
-                if (formData.teacherMood) data.teacherMood = formData.teacherMood;
-                if (formData.weeklySong) data.weeklySong = formData.weeklySong;
-                if (formData.videoHomework) data.videoHomework = formData.videoHomework;
-                if (formData.weeklyStorybook) data.weeklyStorybook = formData.weeklyStorybook;
-                if (formData.lifeHomework) data.lifeHomework = formData.lifeHomework;
-                if (formData.practiceContent) data.practiceContent = formData.practiceContent;
-                if (formData.teacherComments) data.teacherComments = formData.teacherComments;
+                // Preserve teacher data if it exists - use lowercase only
+                if (formData.year) {
+                    data.year = formData.year;
+                    fieldsToSave.add('year');
+                }
+                if (formData.month) {
+                    data.month = formData.month;
+                    fieldsToSave.add('month');
+                }
+                if (formData.day) {
+                    data.day = formData.day;
+                    fieldsToSave.add('day');
+                }
+                
+                // Preserve teacher fields if they exist - use lowercase only
+                if (formData.teachermood) {
+                    data.teachermood = formData.teachermood;
+                    fieldsToSave.add('teachermood');
+                }
+                
+                if (formData.weeklysong) {
+                    data.weeklysong = formData.weeklysong;
+                    fieldsToSave.add('weeklysong');
+                }
+                
+                if (formData.videohomework) {
+                    data.videohomework = formData.videohomework;
+                    fieldsToSave.add('videohomework');
+                }
+                
+                if (formData.weeklystorybook) {
+                    data.weeklystorybook = formData.weeklystorybook;
+                    fieldsToSave.add('weeklystorybook');
+                }
+                
+                if (formData.lifehomework) {
+                    data.lifehomework = formData.lifehomework;
+                    fieldsToSave.add('lifehomework');
+                }
+                
+                if (formData.practicecontent) {
+                    data.practicecontent = formData.practicecontent;
+                    fieldsToSave.add('practicecontent');
+                }
+                
+                if (formData.teachercomments) {
+                    data.teachercomments = formData.teachercomments;
+                    fieldsToSave.add('teachercomments');
+                }
             }
             
-            console.log('Final form data to save:', data);
+            console.log('Final form data to save:', JSON.stringify(data, null, 2));
+            console.log('Fields we are attempting to save:', Array.from(fieldsToSave));
             
             let result;
             if (existingForm) {
                 console.log('Updating existing form with ID:', existingForm.id);
                 // Update existing form
                 try {
-                    const { data: updateData, error: updateError } = await supabase
+                    console.log('Before update operation');
+                    const updateResult = await supabase
                         .from('forms')
                         .update(data)
                         .eq('id', existingForm.id)
                         .select();
                     
-                    if (updateError) {
-                        console.error('Error updating form:', updateError);
+                    console.log('After update operation, result:', JSON.stringify(updateResult, null, 2));
+                    
+                    if (updateResult.error) {
+                        console.error('Error updating form:', updateResult.error);
                         
                         // Handle specific database errors
-                        if (updateError.message && updateError.message.includes('column')) {
-                            throw new Error(`Database schema error: ${updateError.message}. Please run the fix-forms-schema.sql script.`);
-                        } else if (updateError.message && updateError.message.includes('foreign key constraint')) {
-                            throw new Error(`Foreign key error: ${updateError.message}. Please check that the teacher ID exists in the database.`);
+                        if (updateResult.error.message && updateResult.error.message.includes('column')) {
+                            throw new Error(`Database schema error: ${updateResult.error.message}. Please run the fix-forms-schema.sql script.`);
+                        } else if (updateResult.error.message && updateResult.error.message.includes('foreign key constraint')) {
+                            throw new Error(`Foreign key error: ${updateResult.error.message}. Please check that the teacher ID exists in the database.`);
                         }
                         
-                        throw updateError;
+                        throw updateResult.error;
                     }
-                    result = updateData;
+                    
+                    result = updateResult.data;
+                    
+                    // Verify if all fields were saved correctly using our helper
+                    if (result && Array.isArray(result) && result.length > 0) {
+                        const savedData = result[0];
+                        console.log('Saved data:', JSON.stringify(savedData, null, 2));
+                        
+                        // Check if all fields were saved using the helper
+                        const missingFields = this._checkSavedFields(data, savedData, fieldsToSave);
+                        
+                        if (missingFields.length > 0) {
+                            console.warn('Warning: Some fields were not saved correctly:', missingFields);
+                        } else {
+                            console.log('All fields were saved correctly');
+                        }
+                    }
                 } catch (updateError) {
                     console.error('Detailed update error:', updateError);
                     throw updateError;
@@ -439,34 +646,100 @@ const supabaseAuth = {
                 console.log('Inserting new form');
                 // Insert new form
                 try {
-                    const { data: insertData, error: insertError } = await supabase
+                    console.log('Before insert operation');
+                    const insertResult = await supabase
                         .from('forms')
                         .insert(data)
                         .select();
                     
-                    if (insertError) {
-                        console.error('Error inserting form:', insertError);
+                    console.log('After insert operation, result:', JSON.stringify(insertResult, null, 2));
+                    
+                    if (insertResult.error) {
+                        console.error('Error inserting form:', insertResult.error);
                         
                         // Handle specific database errors
-                        if (insertError.message && insertError.message.includes('column')) {
-                            throw new Error(`Database schema error: ${insertError.message}. Please run the fix-forms-schema.sql script.`);
-                        } else if (insertError.message && insertError.message.includes('foreign key constraint')) {
-                            throw new Error(`Foreign key error: ${insertError.message}. Please check that the teacher ID exists in the database.`);
+                        if (insertResult.error.message && insertResult.error.message.includes('column')) {
+                            throw new Error(`Database schema error: ${insertResult.error.message}. Please run the fix-forms-schema.sql script.`);
+                        } else if (insertResult.error.message && insertResult.error.message.includes('foreign key constraint')) {
+                            throw new Error(`Foreign key error: ${insertResult.error.message}. Please check that the teacher ID exists in the database.`);
                         }
                         
-                        throw insertError;
+                        throw insertResult.error;
                     }
-                    result = insertData;
+                    
+                    result = insertResult.data;
+                    
+                    // Verify if all fields were saved correctly using our helper
+                    if (result && Array.isArray(result) && result.length > 0) {
+                        const savedData = result[0];
+                        console.log('Saved data:', JSON.stringify(savedData, null, 2));
+                        
+                        // Check if all fields were saved using the helper
+                        const missingFields = this._checkSavedFields(data, savedData, fieldsToSave);
+                        
+                        if (missingFields.length > 0) {
+                            console.warn('Warning: Some fields were not saved correctly:', missingFields);
+                        } else {
+                            console.log('All fields were saved correctly');
+                        }
+                    }
                 } catch (insertError) {
                     console.error('Detailed insert error:', insertError);
                     throw insertError;
                 }
             }
             
-            console.log('Form saved successfully:', result);
+            console.log('Form saved successfully:', JSON.stringify(result, null, 2));
+            console.log('------------- SAVE FORM FOR DATE END -------------');
             return result;
         } catch (error) {
-            console.error('Error saving form:', error);
+            console.error('Error saving form for date:', error);
+            console.log('------------- SAVE FORM FOR DATE ERROR END -------------');
+            throw error;
+        }
+    },
+    
+    // Save form data to Supabase - now uses saveFormForDate with current week
+    saveForm: async function(parentId, formData, isTeacherForm = false) {
+        try {
+            console.log('------------- SAVE FORM START -------------');
+            
+            let weekStart = this.getWeekStartDate();
+            
+            // If form has year, month, day values, use those to create a custom week start
+            if (formData.year && formData.month && formData.day) {
+                try {
+                    // Create a date from the form data
+                    const formDate = new Date(formData.year, parseInt(formData.month) - 1, parseInt(formData.day));
+                    
+                    // Get the day of the week (0 = Sunday, 1 = Monday, etc.)
+                    const day = formDate.getDay();
+                    
+                    // Calculate how many days we need to go back to reach Monday
+                    // If date is Monday (day=1), diff will be 0
+                    // If date is Tuesday (day=2), diff will be -1, etc.
+                    const diff = formDate.getDate() - (day - 1);
+                    
+                    // Create a new date for the Monday that starts this week
+                    // If date is Sunday (day=0), we need to go to the next day for Monday
+                    const customWeekStart = new Date(formDate);
+                    customWeekStart.setDate(day === 0 ? diff + 1 : diff);
+                    customWeekStart.setHours(0, 0, 0, 0);
+                    
+                    // Format as YYYY-MM-DD
+                    weekStart = customWeekStart.toISOString().split('T')[0];
+                    console.log('Using custom week start date based on form input:', weekStart);
+                } catch (dateError) {
+                    console.error('Error calculating custom week start date:', dateError);
+                    console.log('Falling back to current week start:', weekStart);
+                }
+            } else {
+                console.log('Using current week start date:', weekStart);
+            }
+            
+            return await this.saveFormForDate(parentId, formData, weekStart, isTeacherForm);
+        } catch (error) {
+            console.error('Error in saveForm:', error);
             throw error;
         }
     },
@@ -603,163 +876,164 @@ const supabaseAuth = {
         }
     },
 
-    // ----- Upcoming Week Templates Functions -----
-    
-    // Save a template for an upcoming week (global for all parents)
-    saveUpcomingWeekTemplate: async function(parentId, weeksAhead, templateData) {
-        if (!weeksAhead) throw new Error('Weeks ahead is required');
+    // Save weekly template to the weekly_templates table
+    saveWeeklyTemplate: async function(templateData) {
         if (!templateData) throw new Error('Template data is required');
         
         try {
             const supabase = await this.getSupabaseClient();
             
-            // Calculate the week start date based on weeks ahead
-            const now = new Date();
-            const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            const diff = now.getDate() - day + (7 * parseInt(weeksAhead));
-            const weekStart = new Date(now.setDate(diff));
-            weekStart.setHours(0, 0, 0, 0);
-            const weekStartDate = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD format
+            // Always set weekStart to Monday of the current week
+            const weekStart = this.getWeekStartDate();
             
-            // First check if a template already exists for this week
-            const { data: existingTemplate, error: checkError } = await supabase
-                .from('upcoming_week_templates')
+            return await this.saveWeeklyTemplateForDate(templateData, weekStart);
+        } catch (error) {
+            console.error('Error in saveWeeklyTemplate:', error);
+            throw error;
+        }
+    },
+    
+    // Save weekly template for a specific date
+    saveWeeklyTemplateForDate: async function(templateData, weekStart) {
+        if (!templateData) throw new Error('Template data is required');
+        if (!weekStart) throw new Error('Week start date is required');
+        
+        try {
+            const supabase = await this.getSupabaseClient();
+            
+            console.log('Saving weekly template for week starting:', weekStart);
+            
+            // Format template data - ensure all fields are set to prevent undefined values
+            const dataToSave = {
+                week_start: weekStart,
+                weeklysong: templateData.weeklysong || '',
+                videohomework: templateData.videohomework || '',
+                weeklystorybook: templateData.weeklystorybook || '',
+                lifehomework: templateData.lifehomework || '',
+                practicecontent: templateData.practicecontent || ''
+            };
+            
+            // First check if a record exists for this week_start
+            const { data: existingData, error: checkError } = await supabase
+                .from('weekly_templates')
                 .select('id')
-                .eq('week_start', weekStartDate)
+                .eq('week_start', weekStart)
                 .single();
+                
+            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+                console.error('Error checking for existing template:', checkError);
+                throw checkError;
+            }
             
             let result;
             
-            if (existingTemplate) {
-                // Update existing template
-                result = await supabase
-                    .from('upcoming_week_templates')
-                    .update({
-                        weekly_song: templateData.weekly_song,
-                        video_homework: templateData.video_homework,
-                        weekly_storybook: templateData.weekly_storybook,
-                        life_homework: templateData.life_homework,
-                        practice_content: templateData.practice_content,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', existingTemplate.id);
+            // If record exists, update it
+            if (existingData && existingData.id) {
+                console.log('Updating existing template with id:', existingData.id);
+                
+                const { data: updateData, error: updateError } = await supabase
+                    .from('weekly_templates')
+                    .update(dataToSave)
+                    .eq('id', existingData.id)
+                    .select()
+                    .single();
+                
+                if (updateError) {
+                    console.error('Error updating template:', updateError);
+                    throw updateError;
+                }
+                
+                result = updateData;
             } else {
-                // Insert new template
-                result = await supabase
-                    .from('upcoming_week_templates')
-                    .insert([{
-                        week_start: weekStartDate,
-                        weekly_song: templateData.weekly_song,
-                        video_homework: templateData.video_homework,
-                        weekly_storybook: templateData.weekly_storybook,
-                        life_homework: templateData.life_homework,
-                        practice_content: templateData.practice_content
-                    }]);
+                // Otherwise insert a new record
+                console.log('Inserting new template for week:', weekStart);
+                
+                const { data: insertData, error: insertError } = await supabase
+                    .from('weekly_templates')
+                    .insert(dataToSave)
+                    .select()
+                    .single();
+                
+                if (insertError) {
+                    console.error('Error inserting template:', insertError);
+                    throw insertError;
+                }
+                
+                result = insertData;
             }
             
-            if (result.error) {
-                console.error('Error saving upcoming week template:', result.error);
-                throw result.error;
-            }
-            
-            return { success: true };
+            return result;
         } catch (error) {
-            console.error('Error in saveUpcomingWeekTemplate:', error);
+            console.error('Error in saveWeeklyTemplateForDate:', error);
             throw error;
         }
     },
     
-    // Get template for an upcoming week
-    getUpcomingWeekTemplate: async function(parentId, weeksAhead) {
-        if (!parentId) throw new Error('Parent ID is required');
-        if (!weeksAhead) throw new Error('Weeks ahead is required');
-        
-        try {
-            const supabase = await this.getSupabaseClient();
-            
-            // Calculate the week start date based on weeks ahead
-            const now = new Date();
-            const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            const diff = now.getDate() - day + (7 * parseInt(weeksAhead));
-            const weekStart = new Date(now.setDate(diff));
-            weekStart.setHours(0, 0, 0, 0);
-            const weekStartDate = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD format
-            
-            const { data, error } = await supabase
-                .from('upcoming_week_templates')
-                .select('*')
-                .eq('parent_id', parentId)
-                .eq('week_start', weekStartDate)
-                .single();
-            
-            if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-                console.error('Error retrieving upcoming week template:', error);
-                throw error;
-            }
-            
-            return data || null;
-        } catch (error) {
-            console.error('Error in getUpcomingWeekTemplate:', error);
-            throw error;
-        }
-    },
-    
-    // Get the weekly template for a specific parent
-    getWeeklyTemplateForParent: async function(parentId) {
-        if (!parentId) throw new Error('Parent ID is required');
-        
+    // Get the weekly template from the weekly_templates table
+    getWeeklyTemplate: async function() {
         try {
             const weekStart = this.getWeekStartDate();
+            return await this.getWeeklyTemplateForDate(weekStart);
+        } catch (error) {
+            console.error('Error in getWeeklyTemplate:', error);
+            throw error;
+        }
+    },
+    
+    // Get the weekly template for a specific date
+    getWeeklyTemplateForDate: async function(weekStart) {
+        if (!weekStart) throw new Error('Week start date is required');
+        
+        try {
             const supabase = await this.getSupabaseClient();
             
+            console.log('Getting weekly template for week starting:', weekStart);
+            
             const { data, error } = await supabase
-                .from('forms')
-                .select('weeklySong, videoHomework, weeklyStorybook, lifeHomework, practiceContent')
-                .eq('parent_id', parentId)
+                .from('weekly_templates')
+                .select('*')
                 .eq('week_start', weekStart)
                 .single();
             
-            if (error && error.code !== 'PGRST116') {
-                console.error('Error retrieving current week template:', error);
+            if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+                console.error('Error retrieving weekly template:', error);
                 throw error;
             }
             
-            return data || null;
+            if (data) {
+                console.log('Found template for week starting:', weekStart, data);
+                return data;
+            } else {
+                console.log('No template found for week starting:', weekStart);
+                return null;
+            }
         } catch (error) {
-            console.error('Error in getWeeklyTemplateForParent:', error);
+            console.error('Error in getWeeklyTemplateForDate:', error);
             throw error;
         }
     },
-
-    // Get template for an upcoming week (global for all parents)
-    getUpcomingWeekTemplate: async function(parentId, weeksAhead) {
-        if (!weeksAhead) throw new Error('Weeks ahead is required');
-        
+    
+    // Get template history from the weekly_templates table
+    getWeeklyTemplateHistory: async function(limit = 10) {
         try {
             const supabase = await this.getSupabaseClient();
             
-            // Calculate the week start date based on weeks ahead
-            const now = new Date();
-            const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            const diff = now.getDate() - day + (7 * parseInt(weeksAhead));
-            const weekStart = new Date(now.setDate(diff));
-            weekStart.setHours(0, 0, 0, 0);
-            const weekStartDate = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD format
+            console.log('Getting weekly template history, limit:', limit);
             
             const { data, error } = await supabase
-                .from('upcoming_week_templates')
+                .from('weekly_templates')
                 .select('*')
-                .eq('week_start', weekStartDate)
-                .single();
+                .order('week_start', { ascending: false })
+                .limit(limit);
             
-            if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-                console.error('Error retrieving upcoming week template:', error);
+            if (error) {
+                console.error('Error retrieving weekly template history:', error);
                 throw error;
             }
             
-            return data || null;
+            return data || [];
         } catch (error) {
-            console.error('Error in getUpcomingWeekTemplate:', error);
+            console.error('Error in getWeeklyTemplateHistory:', error);
             throw error;
         }
     },

@@ -493,6 +493,34 @@
             }
         });
         
+        // Display teacher data
+        function displayTeacherData(formData) {
+            // Format date displays
+            document.getElementById('year-display').textContent = formData.year || '';
+            document.getElementById('month-display').textContent = formData.month || '';
+            document.getElementById('day-display').textContent = formData.day || '';
+            
+            // Display teacher mood
+            const teacherMood = formData.teachermood || '';
+            const moodMap = {
+                '1': '😡',
+                '2': '😢',
+                '3': '😴',
+                '4': '😊',
+                '5': '😃',
+                '6': '🤩'
+            };
+            document.getElementById('teacher-mood-display').textContent = moodMap[teacherMood] || 'Not provided';
+            
+            // Display other teacher data
+            document.getElementById('weekly-song-display').textContent = formData.weeklysong || 'Not provided';
+            document.getElementById('video-homework-display').textContent = formData.videohomework || 'Not provided';
+            document.getElementById('weekly-storybook-display').textContent = formData.weeklystorybook || 'Not provided';
+            document.getElementById('life-homework-display').textContent = formData.lifehomework || 'Not provided';
+            document.getElementById('practice-content-display').textContent = formData.practicecontent || 'Not provided';
+            document.getElementById('teacher-comments-display').textContent = formData.teachercomments || 'Not provided';
+        }
+        
         // Load form data from database
         async function loadFormData(parentId) {
             try {
@@ -503,13 +531,13 @@
                 currentForm = formData || null;
                 
                 if (formData) {
-                    console.log('Found existing form:', formData);
+                    console.log('Found existing form data:', JSON.stringify(formData, null, 2));
                     
                     // Populate parent fields
-                    document.getElementById('sleep-time').value = formData.sleepTime || '';
-                    document.getElementById('help-needed').value = formData.helpNeeded || '';
-                    document.getElementById('parent-share').value = formData.parentShare || '';
-                    document.getElementById('parent-comments').value = formData.parentComments || '';
+                    document.getElementById('sleep-time').value = formData.sleeptime || '';
+                    document.getElementById('help-needed').value = formData.helpneeded || '';
+                    document.getElementById('parent-share').value = formData.parentshare || '';
+                    document.getElementById('parent-comments').value = formData.parentcomments || '';
                     
                     // Select emojis
                     if (formData.breakfast) {
@@ -548,35 +576,10 @@
             }
         }
         
-        // Display teacher data
-        function displayTeacherData(formData) {
-            // Date
-            document.getElementById('year-display').textContent = formData.year || 'Not provided';
-            document.getElementById('month-display').textContent = formData.month || 'Not provided';
-            document.getElementById('day-display').textContent = formData.day || 'Not provided';
-            
-            // Convert teacher mood to emoji
-            let moodEmoji = 'Not provided';
-            if (formData.teacherMood) {
-                const moodMap = {
-                    '1': '😡',
-                    '2': '😢',
-                    '3': '😴',
-                    '4': '😊',
-                    '5': '😃',
-                    '6': '🤩'
-                };
-                moodEmoji = moodMap[formData.teacherMood] || 'Not provided';
-            }
-            document.getElementById('teacher-mood-display').textContent = moodEmoji;
-            
-            // Other teacher fields
-            document.getElementById('weekly-song-display').textContent = formData.weeklySong || 'Not provided';
-            document.getElementById('video-homework-display').textContent = formData.videoHomework || 'Not provided';
-            document.getElementById('weekly-storybook-display').textContent = formData.weeklyStorybook || 'Not provided';
-            document.getElementById('life-homework-display').textContent = formData.lifeHomework || 'Not provided';
-            document.getElementById('practice-content-display').textContent = formData.practiceContent || 'Not provided';
-            document.getElementById('teacher-comments-display').textContent = formData.teacherComments || 'Not provided';
+        // Helper function to get the selected rating for a given emoji group
+        function getSelectedRating(emojiGroup) {
+            const selected = document.querySelector(`.${emojiGroup}-emoji.selected`);
+            return selected ? selected.getAttribute('data-value') : '';
         }
         
         // Submit form
@@ -606,15 +609,15 @@
                 
                 // Collect data from form
                 const formData = {
-                    sleepTime: document.getElementById('sleep-time').value,
-                    helpNeeded: document.getElementById('help-needed').value,
-                    breakfast: document.querySelector('.breakfast-emoji.selected')?.getAttribute('data-value') || '',
-                    watch: document.querySelector('.watch-emoji.selected')?.getAttribute('data-value') || '',
-                    watch2: document.querySelector('.watch2-emoji.selected')?.getAttribute('data-value') || '',
-                    todo: document.querySelector('.todo-emoji.selected')?.getAttribute('data-value') || '',
-                    todo2: document.querySelector('.todo2-emoji.selected')?.getAttribute('data-value') || '',
-                    parentShare: document.getElementById('parent-share').value,
-                    parentComments: document.getElementById('parent-comments').value
+                    sleeptime: document.getElementById('sleep-time').value,
+                    helpneeded: document.getElementById('help-needed').value,
+                    breakfast: getSelectedRating('breakfast'),
+                    watch: getSelectedRating('watch'),
+                    watch2: getSelectedRating('watch2'),
+                    todo: getSelectedRating('todo'),
+                    todo2: getSelectedRating('todo2'),
+                    parentshare: document.getElementById('parent-share').value,
+                    parentcomments: document.getElementById('parent-comments').value
                 };
                 
                 console.log('Form data to be submitted:', formData);
