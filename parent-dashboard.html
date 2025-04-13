@@ -97,18 +97,25 @@
         .action-buttons {
             margin-top: 30px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
             gap: 15px;
         }
         .btn {
-            padding: 10px 20px;
+            padding: 15px 20px;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
         }
         .btn-primary {
             background-color: #2b3990;
@@ -117,9 +124,38 @@
         .btn-secondary {
             background-color: #757575;
             color: white;
+            margin-top: 5px;
         }
         .btn:hover {
             opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .btn-status {
+            font-size: 14px;
+            margin-top: 8px;
+            width: 100%;
+            opacity: 0.85;
+            line-height: 1.4;
+        }
+        .btn-text {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-icon {
+            font-size: 20px;
+        }
+        .form-button-container {
+            width: 100%;
+            max-width: 400px;
         }
         .loading-overlay {
             position: fixed;
@@ -162,6 +198,33 @@
             margin-bottom: 15px;
             display: none;
         }
+        
+        /* Status colors */
+        .status-pending {
+            background-color: #f0ad4e !important;
+        }
+        .status-completed {
+            background-color: #2b3990 !important;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+            }
+            .btn {
+                padding: 12px 15px;
+                font-size: 15px;
+            }
+            .header h1 {
+                font-size: 20px;
+            }
+            .logo-container {
+                width: 40px;
+                height: 40px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -191,14 +254,22 @@
             <p>這是您的每週通訊表的儀表板。</p>
         </div>
         
-        <div id="current-week-status" class="form-status">
-            <h3>This week's communication form / 本周的溝通表</h3>
-            <p id="status-message">Loading status...</p>
-        </div>
-        
         <div class="action-buttons">
-            <button class="btn btn-primary" id="new-form-btn">View or Submit Weekly Form / 查看或提交本周的溝通表</button>
-            <button class="btn btn-secondary" id="view-history-btn">View History / 查看歷史</button>
+            <div class="form-button-container">
+                <button class="btn btn-primary" id="new-form-btn">
+                    <span class="btn-text">
+                        <span class="btn-icon">📝</span>
+                        Weekly Communication Form / 每週溝通表
+                    </span>
+                    <span class="btn-status" id="status-message">Loading status...</span>
+                </button>
+            </div>
+            <button class="btn btn-secondary" id="view-history-btn">
+                <span class="btn-text">
+                    <span class="btn-icon">📋</span>
+                    View History / 查看歷史
+                </span>
+            </button>
         </div>
     </div>
 
@@ -247,29 +318,24 @@
         // Update form status display
         function updateFormStatus(formData) {
             const statusElement = document.getElementById('status-message');
-            const statusContainer = document.getElementById('current-week-status');
+            const formButton = document.getElementById('new-form-btn');
             
             if (!formData) {
-                statusElement.textContent = 'You have not submitted your form for this week. Please submit it.';
-                statusContainer.classList.add('pending');
+                statusElement.textContent = 'Not submitted for this week / 本週尚未提交';
+                formButton.classList.remove('status-completed');
+                formButton.classList.add('status-pending');
                 return;
             }
             
-            // Form exists
-            statusContainer.classList.remove('pending');
-            statusContainer.classList.add('completed');
+            // Form exists - set completed status
+            formButton.classList.remove('status-pending');
+            formButton.classList.add('status-completed');
             
             // Check if teacher has filled their part
             if (formData.teacherComments) {
-                statusElement.innerHTML = `
-                    <strong>Status:</strong> Completed by both you and the teacher.<br>
-                    <strong>Last updated:</strong> ${new Date(formData.updated_at).toLocaleString()}<br>
-                    <strong>Teacher comments:</strong> ${formData.teacherComments || 'None'}
-                `;
+                statusElement.innerHTML = `Completed by both you and teacher / 您和老師都已完成<br>Last updated: ${new Date(formData.updated_at).toLocaleString()}`;
             } else {
-                statusElement.innerHTML = `
-                    <strong>Submitted on:</strong> ${new Date(formData.updated_at).toLocaleString()}<br>
-                `;
+                statusElement.innerHTML = `Submitted on: ${new Date(formData.updated_at).toLocaleString()}`;
             }
         }
         
