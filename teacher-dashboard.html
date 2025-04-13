@@ -345,10 +345,17 @@
             <p>Set the weekly content that will be applied to all parent forms. Individual comments can be customized later.</p>
             
             <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label for="template-week-start">Week Start Date:</label>
-                    <input type="date" id="template-week-start" name="template-week-start" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
-                    <small style="display: block; margin-top: 4px; color: #666;">Select Monday of the week</small>
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="template-week-start">Week Start Date:</label>
+                        <input type="date" id="template-week-start" name="template-week-start" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                        <small style="display: block; margin-top: 4px; color: #666;">Start of the week</small>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="template-week-end">Week End Date:</label>
+                        <input type="date" id="template-week-end" name="template-week-end" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                        <small style="display: block; margin-top: 4px; color: #666;">End of the week</small>
+                    </div>
                 </div>
                 <button type="button" class="btn" style="background-color: #607d8b; color: white;" id="view-template-history-btn">View Template History</button>
             </div>
@@ -505,21 +512,71 @@
             });
             
             // Add event listener for template week start date change
-            document.getElementById('template-week-start').addEventListener('change', async function() {
+            document.getElementById('template-week-start').addEventListener('change', function() {
+                // When start date changes, update the end date to be start date + 6 days
                 try {
-                    const selectedDate = this.value;
-                    if (!selectedDate) return;
+                    const startDate = new Date(this.value);
+                    if (isNaN(startDate.getTime())) return;
+                    
+                    // Calculate end date (start date + 6 days = 7 day week)
+                    const endDate = new Date(startDate);
+                    endDate.setDate(endDate.getDate() + 6);
+                    
+                    // Format as YYYY-MM-DD
+                    const formattedEndDate = endDate.toISOString().split('T')[0];
+                    document.getElementById('template-week-end').value = formattedEndDate;
+                    
+                    // Load template for the selected date range
+                    loadTemplateForSelectedDates();
+                } catch (error) {
+                    console.error('Error updating end date:', error);
+                }
+            });
+            
+            // Add event listener for template week end date change
+            document.getElementById('template-week-end').addEventListener('change', function() {
+                // Validate that end date is after start date
+                try {
+                    const startDate = new Date(document.getElementById('template-week-start').value);
+                    const endDate = new Date(this.value);
+                    
+                    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return;
+                    
+                    if (endDate < startDate) {
+                        alert('End date must be after start date');
+                        // Reset to start date + 6 days
+                        const newEndDate = new Date(startDate);
+                        newEndDate.setDate(newEndDate.getDate() + 6);
+                        this.value = newEndDate.toISOString().split('T')[0];
+                    }
+                    
+                    // Load template for the selected date range
+                    loadTemplateForSelectedDates();
+                } catch (error) {
+                    console.error('Error validating dates:', error);
+                }
+            });
+            
+            // Function to load template for selected dates
+            async function loadTemplateForSelectedDates() {
+                try {
+                    const startDate = document.getElementById('template-week-start').value;
+                    const endDate = document.getElementById('template-week-end').value;
+                    
+                    if (!startDate || !endDate) return;
                     
                     showLoading(true);
                     
-                    // Load template for the selected date
-                    const weeklyTemplate = await supabaseAuth.getWeeklyTemplateForDate(selectedDate);
+                    // Load template for the selected date range
+                    const weeklyTemplate = await supabaseAuth.getWeeklyTemplateForDate(startDate);
                     
                     // Clear form first
                     document.getElementById('template-form').reset();
+                    document.getElementById('template-week-start').value = startDate;
+                    document.getElementById('template-week-end').value = endDate;
                     
                     if (weeklyTemplate) {
-                        console.log('Found template for selected date:', weeklyTemplate);
+                        console.log('Found template for selected date range:', weeklyTemplate);
                         
                         // Populate template fields
                         document.getElementById('template-weekly-song').value = weeklyTemplate.weeklysong || '';
@@ -528,17 +585,17 @@
                         document.getElementById('template-life-homework').value = weeklyTemplate.lifehomework || '';
                         document.getElementById('template-practice-content').value = weeklyTemplate.practicecontent || '';
                     } else {
-                        console.log('No template found for selected date:', selectedDate);
+                        console.log('No template found for selected date range');
                     }
                 } catch (error) {
-                    console.error('Error loading template for selected date:', error);
+                    console.error('Error loading template for selected dates:', error);
                     document.getElementById('template-modal-message').textContent = 
                         'Error loading template: ' + error.message;
                     document.getElementById('template-modal-message').style.display = 'block';
                 } finally {
                     showLoading(false);
                 }
-            });
+            }
             
             // Event listeners for template form
             document.getElementById('template-form').addEventListener('submit', setWeeklyTemplate);
@@ -642,17 +699,31 @@
             }
         }
         
-        // Update the setWeeklyTemplate function to use the selected date
+        // Update the setWeeklyTemplate function to use both start and end dates
         async function setWeeklyTemplate(event) {
             event.preventDefault();
             
             try {
                 showLoading(true);
                 
-                // Get the selected week start date
+                // Get the selected week start and end dates
                 const weekStartInput = document.getElementById('template-week-start').value;
+                const weekEndInput = document.getElementById('template-week-end').value;
+                
                 if (!weekStartInput) {
                     throw new Error('Please select a week start date');
+                }
+                
+                if (!weekEndInput) {
+                    throw new Error('Please select a week end date');
+                }
+                
+                // Validate that end date is after start date
+                const startDate = new Date(weekStartInput);
+                const endDate = new Date(weekEndInput);
+                
+                if (endDate < startDate) {
+                    throw new Error('End date must be after start date');
                 }
                 
                 // Get form values
@@ -662,19 +733,8 @@
                 const life_homework = document.getElementById('template-life-homework').value;
                 const practice_content = document.getElementById('template-practice-content').value;
                 
-                // Create a Date object from the input to ensure it's a Monday
-                const selectedDate = new Date(weekStartInput);
-                const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-                
-                // Warn if the selected date is not a Monday
-                if (dayOfWeek !== 1) {
-                    // Show warning but continue
-                    console.warn('Selected date is not a Monday. Week will start on', 
-                                formatDate(weekStartInput));
-                }
-                
                 // Parse the date to get year, month, day components
-                const dateParts = weekStartInput.split('-');
+                const startDateParts = weekStartInput.split('-');
                 
                 // Create template data object with lowercase field names to match database
                 const templateData = {
@@ -686,20 +746,21 @@
                     
                     // Use the selected date components
                     week_start: weekStartInput,
-                    year: dateParts[0],
-                    month: parseInt(dateParts[1]).toString(), // Remove leading zero
-                    day: parseInt(dateParts[2]).toString()    // Remove leading zero
+                    week_end: weekEndInput,
+                    year: startDateParts[0],
+                    month: parseInt(startDateParts[1]).toString(), // Remove leading zero
+                    day: parseInt(startDateParts[2]).toString()    // Remove leading zero
                 };
                 
                 console.log('Template data to save:', templateData);
                 
-                // Save to the weekly_templates table with the selected date
-                await supabaseAuth.saveWeeklyTemplateForDate(templateData, weekStartInput);
+                // Save to the weekly_templates table with the selected date range
+                await supabaseAuth.saveWeeklyTemplateForDate(templateData, weekStartInput, weekEndInput);
                 console.log('Template saved to weekly_templates table');
                 
                 // Show success message
                 document.getElementById('template-success-message').textContent = 
-                    `Template saved successfully for week starting ${formatDate(weekStartInput)}! Click "Apply To All Parents" to apply this template to all parent forms.`;
+                    `Template saved successfully for week ${formatDate(weekStartInput)} - ${formatDate(weekEndInput)}! Click "Apply To All Parents" to apply this template to all parent forms.`;
                 document.getElementById('template-success-message').style.display = 'block';
                 
             } catch (error) {
@@ -712,15 +773,21 @@
             }
         }
         
-        // Add a new function to apply the template to all parents for the selected date
+        // Update the applyTemplateToParents function to use both start and end dates
         async function applyTemplateToParents() {
             try {
                 showLoading(true);
                 
-                // Get the selected week start date
+                // Get the selected week start and end dates
                 const weekStartInput = document.getElementById('template-week-start').value;
+                const weekEndInput = document.getElementById('template-week-end').value;
+                
                 if (!weekStartInput) {
                     throw new Error('Please select a week start date');
+                }
+                
+                if (!weekEndInput) {
+                    throw new Error('Please select a week end date');
                 }
                 
                 // Get the template for the selected date
@@ -731,7 +798,7 @@
                 }
                 
                 // Parse the date to get year, month, day components
-                const dateParts = weekStartInput.split('-');
+                const startDateParts = weekStartInput.split('-');
                 
                 // Create template data object with lowercase field names to match database
                 const templateData = {
@@ -745,9 +812,10 @@
                     
                     // Use the selected date components
                     week_start: weekStartInput,
-                    year: dateParts[0],
-                    month: parseInt(dateParts[1]).toString(), // Remove leading zero
-                    day: parseInt(dateParts[2]).toString()    // Remove leading zero
+                    week_end: weekEndInput,
+                    year: startDateParts[0],
+                    month: parseInt(startDateParts[1]).toString(), // Remove leading zero
+                    day: parseInt(startDateParts[2]).toString()    // Remove leading zero
                 };
                 
                 console.log('Template data to apply to parents:', templateData);
@@ -782,7 +850,7 @@
                 
                 // Show success message
                 document.getElementById('template-success-message').textContent = 
-                    `Template applied to ${successCount} parent forms for week starting ${formatDate(weekStartInput)}!`;
+                    `Template applied to ${successCount} parent forms for week ${formatDate(weekStartInput)} - ${formatDate(weekEndInput)}!`;
                 document.getElementById('template-success-message').style.display = 'block';
                 
                 // Close modal after delay
@@ -804,108 +872,6 @@
                 document.getElementById('template-modal-message').style.display = 'block';
             } finally {
                 showLoading(false);
-            }
-        }
-        
-        // Update the loadWeeklyTemplate function to work with the selected date
-        async function loadWeeklyTemplate() {
-            try {
-                // Clear form
-                document.getElementById('template-form').reset();
-                
-                // Clear messages
-                document.getElementById('template-modal-message').textContent = '';
-                document.getElementById('template-success-message').textContent = '';
-                
-                // Get current week's start date and set the date input
-                const today = new Date();
-                const currentWeekStart = supabaseAuth.getWeekStartDate();
-                document.getElementById('template-week-start').value = currentWeekStart;
-                
-                console.log('Setting default week start date to:', currentWeekStart);
-                
-                // First try to load from the weekly_templates table
-                const weeklyTemplate = await supabaseAuth.getWeeklyTemplateForDate(currentWeekStart);
-                
-                if (weeklyTemplate) {
-                    console.log('Found template in weekly_templates table:', weeklyTemplate);
-                    
-                    // Populate template fields
-                    document.getElementById('template-weekly-song').value = weeklyTemplate.weeklysong || '';
-                    document.getElementById('template-video-homework').value = weeklyTemplate.videohomework || '';
-                    document.getElementById('template-weekly-storybook').value = weeklyTemplate.weeklystorybook || '';
-                    document.getElementById('template-life-homework').value = weeklyTemplate.lifehomework || '';
-                    document.getElementById('template-practice-content').value = weeklyTemplate.practicecontent || '';
-                    
-                    return;
-                }
-                
-                // If no template found in weekly_templates, try to get from a parent's form
-                console.log('No template found in weekly_templates table, checking parent forms');
-                
-                // Get first parent (template should be the same for all parents)
-                const parentsResult = await supabaseAuth.getParents();
-                
-                // Extract parents array based on response format
-                let parents = [];
-                if (Array.isArray(parentsResult)) {
-                    parents = parentsResult;
-                } else if (parentsResult && parentsResult.data && Array.isArray(parentsResult.data)) {
-                    parents = parentsResult.data;
-                } else if (parentsResult && parentsResult.error) {
-                    throw parentsResult.error;
-                }
-                
-                if (parents && parents.length > 0) {
-                    console.log('Found parents:', parents.length, 'Using first parent:', parents[0].id);
-                    // Get form for first parent
-                    const parentForm = await supabaseAuth.getParentFormForDate(parents[0].id, currentWeekStart);
-                    console.log('Parent form loaded:', parentForm);
-                    
-                    // If form exists, populate template fields
-                    if (parentForm) {
-                        // Try lowercase fields first, then fall back to snake_case
-                        document.getElementById('template-weekly-song').value = 
-                            parentForm.weeklysong || parentForm.weekly_song || '';
-                        
-                        document.getElementById('template-video-homework').value = 
-                            parentForm.videohomework || parentForm.video_homework || '';
-                        
-                        document.getElementById('template-weekly-storybook').value = 
-                            parentForm.weeklystorybook || parentForm.weekly_storybook || '';
-                        
-                        document.getElementById('template-life-homework').value = 
-                            parentForm.lifehomework || parentForm.life_homework || '';
-                        
-                        document.getElementById('template-practice-content').value = 
-                            parentForm.practicecontent || parentForm.practice_content || '';
-                        
-                        // Since we found a template in a parent form but not in weekly_templates,
-                        // save it to weekly_templates for future reference
-                        const templateData = {
-                            weeklysong: parentForm.weeklysong || parentForm.weekly_song || '',
-                            videohomework: parentForm.videohomework || parentForm.video_homework || '',
-                            weeklystorybook: parentForm.weeklystorybook || parentForm.weekly_storybook || '',
-                            lifehomework: parentForm.lifehomework || parentForm.life_homework || '',
-                            practicecontent: parentForm.practicecontent || parentForm.practice_content || '',
-                            week_start: currentWeekStart
-                        };
-                        
-                        try {
-                            await supabaseAuth.saveWeeklyTemplateForDate(templateData, currentWeekStart);
-                            console.log('Saved parent form template to weekly_templates table');
-                        } catch (saveError) {
-                            console.error('Error saving parent form template to weekly_templates:', saveError);
-                            // Continue anyway, this is just a convenience save
-                        }
-                    } else {
-                        console.log('No form found for parent');
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading weekly template:', error);
-                document.getElementById('template-modal-message').textContent = 
-                    'Error loading template: ' + error.message;
             }
         }
         
@@ -1180,10 +1146,14 @@
                 for (const template of templates) {
                     const row = document.createElement('tr');
                     row.style.borderBottom = '1px solid #ddd';
+                    row.dataset.templateId = template.id; // Store template ID in the row
                     
-                    // Format the week date
-                    const weekDate = new Date(template.week_start);
-                    const formattedWeek = `${weekDate.getMonth() + 1}/${weekDate.getDate()}/${weekDate.getFullYear()} - ${new Date(weekDate.getTime() + 6 * 24 * 60 * 60 * 1000).getMonth() + 1}/${new Date(weekDate.getTime() + 6 * 24 * 60 * 60 * 1000).getDate()}/${new Date(weekDate.getTime() + 6 * 24 * 60 * 60 * 1000).getFullYear()}`;
+                    // Format the week date range
+                    const startDate = new Date(template.week_start);
+                    // Use provided end date or calculate it (start + 6 days)
+                    const endDate = template.week_end ? new Date(template.week_end) : new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+                    
+                    const formattedWeek = `${formatDate(template.week_start)} - ${formatDate(template.week_end || endDate.toISOString().split('T')[0])}`;
                     
                     // Create week cell
                     const weekCell = document.createElement('td');
@@ -1208,19 +1178,49 @@
                     actionsCell.style.padding = '10px';
                     actionsCell.style.textAlign = 'center';
                     
-                    // Create copy button
-                    const copyButton = document.createElement('button');
-                    copyButton.className = 'btn';
-                    copyButton.style.backgroundColor = '#2b3990';
-                    copyButton.style.color = 'white';
-                    copyButton.style.padding = '5px 10px';
-                    copyButton.style.fontSize = '12px';
-                    copyButton.textContent = 'Use This Template';
-                    copyButton.onclick = function() {
+                    // Create action buttons container with flex layout
+                    const actionButtonsContainer = document.createElement('div');
+                    actionButtonsContainer.style.display = 'flex';
+                    actionButtonsContainer.style.justifyContent = 'center';
+                    actionButtonsContainer.style.gap = '8px';
+                    
+                    // Create "Use Template" button
+                    const useButton = document.createElement('button');
+                    useButton.className = 'btn';
+                    useButton.style.backgroundColor = '#2b3990';
+                    useButton.style.color = 'white';
+                    useButton.style.padding = '5px 10px';
+                    useButton.style.fontSize = '12px';
+                    useButton.textContent = 'Use';
+                    useButton.title = 'Use this template for the current week';
+                    useButton.onclick = function() {
                         useHistoricalTemplate(template);
                     };
                     
-                    actionsCell.appendChild(copyButton);
+                    // Create delete button
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'btn';
+                    deleteButton.style.backgroundColor = '#dc3545';
+                    deleteButton.style.color = 'white';
+                    deleteButton.style.padding = '5px 10px';
+                    deleteButton.style.fontSize = '12px';
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.title = 'Delete this template permanently';
+                    deleteButton.onclick = function(event) {
+                        // Prevent event from bubbling up to row
+                        event.stopPropagation();
+                        // Confirm delete
+                        if (confirm(`Are you sure you want to delete the template for the week of ${formattedWeek}?`)) {
+                            deleteTemplate(template.id);
+                        }
+                    };
+                    
+                    // Add buttons to container
+                    actionButtonsContainer.appendChild(useButton);
+                    actionButtonsContainer.appendChild(deleteButton);
+                    
+                    // Add container to actions cell
+                    actionsCell.appendChild(actionButtonsContainer);
                     
                     // Add cells to row
                     row.appendChild(weekCell);
@@ -1237,6 +1237,36 @@
             }
         }
         
+        // Function to delete a template
+        async function deleteTemplate(templateId) {
+            try {
+                showLoading(true);
+                
+                // Delete the template
+                await supabaseAuth.deleteWeeklyTemplate(templateId);
+                
+                // Show success message
+                document.getElementById('history-modal-message').textContent = 'Template deleted successfully!';
+                document.getElementById('history-modal-message').className = 'success-message';
+                document.getElementById('history-modal-message').style.display = 'block';
+                
+                // Reload the template history
+                await loadTemplateHistory();
+                
+                // Auto-hide message after 3 seconds
+                setTimeout(() => {
+                    document.getElementById('history-modal-message').style.display = 'none';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Error deleting template:', error);
+                document.getElementById('history-modal-message').textContent = 'Error: ' + error.message;
+                document.getElementById('history-modal-message').style.display = 'block';
+            } finally {
+                showLoading(false);
+            }
+        }
+        
         // Function to use a historical template
         async function useHistoricalTemplate(template) {
             try {
@@ -1247,74 +1277,33 @@
                 // Close the history modal
                 document.getElementById('templateHistoryModal').style.display = 'none';
                 
-                // Populate the weekly template form with the historical template data
+                // Get the current week dates
+                const currentWeekStart = supabaseAuth.getWeekStartDate();
+                const currentWeekEnd = new Date(currentWeekStart);
+                currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+                const formattedCurrentWeekEnd = currentWeekEnd.toISOString().split('T')[0];
+                
+                // Open the weekly template modal
+                document.getElementById('weeklyTemplateModal').style.display = 'block';
+                
+                // Populate the form with the template data
                 document.getElementById('template-weekly-song').value = template.weeklysong || '';
                 document.getElementById('template-video-homework').value = template.videohomework || '';
                 document.getElementById('template-weekly-storybook').value = template.weeklystorybook || '';
                 document.getElementById('template-life-homework').value = template.lifehomework || '';
                 document.getElementById('template-practice-content').value = template.practicecontent || '';
                 
-                // Create template data object with lowercase field names to match database
-                const templateData = {
-                    weeklysong: template.weeklysong || '',
-                    videohomework: template.videohomework || '',
-                    weeklystorybook: template.weeklystorybook || '',
-                    lifehomework: template.lifehomework || '',
-                    practicecontent: template.practicecontent || '',
-                    teachercomments: '',  // Explicitly set to empty to overwrite any existing values
-                    teachermood: '5',     // Default to happy mood (5) when applying templates
-                    
-                    // Add current date
-                    year: new Date().getFullYear().toString(),
-                    month: (new Date().getMonth() + 1).toString(),
-                    day: new Date().getDate().toString()
-                };
+                // Set the date inputs to current week by default, or let the user select dates
+                document.getElementById('template-week-start').value = currentWeekStart;
+                document.getElementById('template-week-end').value = formattedCurrentWeekEnd;
                 
-                console.log('Template data to apply to all parents:', templateData);
+                // Display success message
+                document.getElementById('template-success-message').textContent = 
+                    `Template loaded from ${formatDate(template.week_start)} - ${formatDate(template.week_end || new Date(new Date(template.week_start).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])}. Adjust dates if needed and click "Save Template" or "Apply To All Parents".`;
+                document.getElementById('template-success-message').style.display = 'block';
                 
-                // First, save to weekly_templates table for current week
-                await supabaseAuth.saveWeeklyTemplate(templateData);
-                
-                // Get all parents
-                const parentsResult = await supabaseAuth.getParents();
-                
-                // Extract parents array based on response format
-                let parents = [];
-                if (Array.isArray(parentsResult)) {
-                    parents = parentsResult;
-                } else if (parentsResult && parentsResult.data && Array.isArray(parentsResult.data)) {
-                    parents = parentsResult.data;
-                } else if (parentsResult && parentsResult.error) {
-                    throw parentsResult.error;
-                }
-                
-                console.log('Retrieved parents:', parents.length);
-                
-                // Success counter
-                let successCount = 0;
-                
-                // For each parent, create or update their form with the template data
-                for (const parent of parents) {
-                    try {
-                        console.log('Applying template to parent:', parent.id);
-                        // Save the template to the parent's form
-                        await supabaseAuth.saveForm(parent.id, templateData, true);
-                        successCount++;
-                    } catch (saveError) {
-                        console.error(`Error saving template for parent ${parent.id}:`, saveError);
-                    }
-                }
-                
-                // Close modals
-                document.getElementById('weeklyTemplateModal').style.display = 'none';
-                
-                // Show success message in main dashboard
-                showSuccess(`Applied historical template to ${successCount} parent forms!`);
-                
-                // Reload parents list with updated status
-                await loadParents();
             } catch (error) {
-                console.error('Error applying historical template:', error);
+                console.error('Error using historical template:', error);
                 showError('Error: ' + error.message);
             } finally {
                 // Ensure loading indicator is hidden

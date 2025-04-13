@@ -894,7 +894,7 @@ const supabaseAuth = {
     },
     
     // Save weekly template for a specific date
-    saveWeeklyTemplateForDate: async function(templateData, weekStart) {
+    saveWeeklyTemplateForDate: async function(templateData, weekStart, weekEnd) {
         if (!templateData) throw new Error('Template data is required');
         if (!weekStart) throw new Error('Week start date is required');
         
@@ -902,10 +902,14 @@ const supabaseAuth = {
             const supabase = await this.getSupabaseClient();
             
             console.log('Saving weekly template for week starting:', weekStart);
+            if (weekEnd) {
+                console.log('Week ending:', weekEnd);
+            }
             
             // Format template data - ensure all fields are set to prevent undefined values
             const dataToSave = {
                 week_start: weekStart,
+                week_end: weekEnd || null, // Store end date if provided
                 weeklysong: templateData.weeklysong || '',
                 videohomework: templateData.videohomework || '',
                 weeklystorybook: templateData.weeklystorybook || '',
@@ -1034,6 +1038,33 @@ const supabaseAuth = {
             return data || [];
         } catch (error) {
             console.error('Error in getWeeklyTemplateHistory:', error);
+            throw error;
+        }
+    },
+    
+    // Delete a template by ID
+    deleteWeeklyTemplate: async function(templateId) {
+        if (!templateId) throw new Error('Template ID is required');
+        
+        try {
+            const supabase = await this.getSupabaseClient();
+            
+            console.log('Deleting template with ID:', templateId);
+            
+            const { data, error } = await supabase
+                .from('weekly_templates')
+                .delete()
+                .eq('id', templateId);
+                
+            if (error) {
+                console.error('Error deleting template:', error);
+                throw error;
+            }
+            
+            console.log('Template deleted successfully');
+            return true;
+        } catch (error) {
+            console.error('Error in deleteWeeklyTemplate:', error);
             throw error;
         }
     },

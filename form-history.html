@@ -630,23 +630,40 @@
                 
                 if (formData) {
                     // Show form content
-                    document.getElementById('form-content').style.display = 'block';
-                    document.getElementById('no-form-message').style.display = 'none';
+                    const formContentElement = document.getElementById('form-content');
+                    const noFormMessageElement = document.getElementById('no-form-message');
+                    
+                    if (formContentElement) {
+                        formContentElement.style.display = 'block';
+                    } else {
+                        console.error('form-content element not found');
+                    }
+                    
+                    if (noFormMessageElement) {
+                        noFormMessageElement.style.display = 'none';
+                    }
                     
                     // Format date if year, month, and day are available
-                    if (formData.year && formData.month && formData.day) {
-                        const formDate = new Date(formData.year, formData.month - 1, formData.day);
-                        document.getElementById('form-date').textContent = 
-                            `${formData.year}/${formData.month}/${formData.day}`;
-                    } else {
+                    const formDateElement = document.getElementById('form-date');
+                    if (formData.year && formData.month && formData.day && formDateElement) {
+                        formDateElement.textContent = `${formData.year}/${formData.month}/${formData.day}`;
+                    } else if (formDateElement) {
                         // If the form doesn't have specific date info, show the week start date
                         const [year, month, day] = weekStart.split('-');
-                        document.getElementById('form-date').textContent = `${year}/${month}/${day}`;
+                        formDateElement.textContent = `${year}/${month}/${day}`;
                     }
                     
                     // Update form header
-                    document.getElementById('form-title').textContent = `Weekly Communication Form`;
-                    document.getElementById('parent-name-value').textContent = parentName;
+                    const formTitleElement = document.getElementById('form-title');
+                    const parentNameValueElement = document.getElementById('parent-name-value');
+                    
+                    if (formTitleElement) {
+                        formTitleElement.textContent = `Weekly Communication Form`;
+                    }
+                    
+                    if (parentNameValueElement) {
+                        parentNameValueElement.textContent = parentName;
+                    }
                     
                     // Helper function to convert rating to emoji
                     function getEmojiForRating(rating) {
@@ -683,26 +700,29 @@
                         }
                     }
                     
-                    // Set teacher data
-                    setTextContent('teacher-mood-value', getMoodEmoji(formData.teacher_mood));
-                    setTextContent('weekly-song-value', formData.weekly_song);
-                    setTextContent('video-homework-value', formData.video_homework);
-                    setTextContent('weekly-storybook-value', formData.weekly_storybook);
-                    setTextContent('life-homework-value', formData.life_homework);
-                    setTextContent('practice-content-value', formData.practice_content);
-                    setTextContent('teacher-comments-value', formData.teacher_comments);
-                    setTextContent('teacher-name-value', formData.teacher_name);
+                    // Set teacher data - using camelCase field names that match the database
+                    setTextContent('teacher-mood-value', getMoodEmoji(formData.teachermood));
+                    setTextContent('weekly-song-value', formData.weeklysong);
+                    setTextContent('video-homework-value', formData.videohomework);
+                    // Check if we have weeklystorybook field, otherwise look for weeklyhomework
+                    const storybook = formData.weeklystorybook || formData.weeklyhomework;
+                    setTextContent('weekly-storybook-value', storybook);
+                    setTextContent('life-homework-value', formData.lifehomework);
+                    setTextContent('practice-content-value', formData.practicecontent);
+                    setTextContent('teacher-comments-value', formData.teachercomments);
+                    // We'll use "Unknown" for teacher name if it's not in the database
+                    setTextContent('teacher-name-value', formData.teacher_name || 'Unknown');
                     
-                    // Set parent data
-                    setTextContent('sleep-time-value', formData.sleep_time);
-                    setTextContent('help-needed-value', formData.help_needed);
+                    // Set parent data - using camelCase field names that match the database
+                    setTextContent('sleep-time-value', formData.sleeptime);
+                    setTextContent('help-needed-value', formData.helpneeded);
                     setTextContent('breakfast-value', getEmojiForRating(formData.breakfast));
                     setTextContent('watch-value', getEmojiForRating(formData.watch));
                     setTextContent('watch2-value', getEmojiForRating(formData.watch2));
                     setTextContent('todo-value', getEmojiForRating(formData.todo));
                     setTextContent('todo2-value', getEmojiForRating(formData.todo2));
-                    setTextContent('parent-share-value', formData.parent_share);
-                    setTextContent('parent-comments-value', formData.parent_comments);
+                    setTextContent('parent-share-value', formData.parentshare);
+                    setTextContent('parent-comments-value', formData.parentcomments);
                 } else {
                     // No form data for this week
                     hideFormContent();
