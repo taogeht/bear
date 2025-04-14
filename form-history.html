@@ -153,6 +153,12 @@
             min-height: 20px;
         }
         
+        /* Style to preserve line breaks in multi-line content */
+        .preserve-whitespace {
+            white-space: pre-line; /* Preserves line breaks and collapses multiple whitespace */
+            word-wrap: break-word; /* Ensures long words don't overflow */
+        }
+        
         .mood-value, .rating-value {
             font-size: 18px;
         }
@@ -318,7 +324,7 @@
                     <td>
                         <div>
                             <div class="data-label" id="weekly-song-label">Weekly Song:</div>
-                            <div class="data-value" id="weekly-song-value"></div>
+                            <div class="data-value preserve-whitespace" id="weekly-song-value"></div>
                         </div>
                     </td>
                     <td colspan="2" rowspan="2">
@@ -346,7 +352,7 @@
                     <td>
                         <div>
                             <div class="data-label" id="video-homework-label">Video Homework:</div>
-                            <div class="data-value" id="video-homework-value"></div>
+                            <div class="data-value preserve-whitespace" id="video-homework-value"></div>
                         </div>
                     </td>
                 </tr>
@@ -354,7 +360,7 @@
                     <td>
                         <div>
                             <div class="data-label" id="weekly-storybook-label">Weekly Storybook:</div>
-                            <div class="data-value" id="weekly-storybook-value"></div>
+                            <div class="data-value preserve-whitespace" id="weekly-storybook-value"></div>
                         </div>
                     </td>
                     <td colspan="2" rowspan="2">
@@ -364,29 +370,29 @@
                     <td>
                         <div>
                             <div class="data-label" id="life-homework-label">Life Homework:</div>
-                            <div class="data-value" id="life-homework-value"></div>
+                            <div class="data-value preserve-whitespace" id="life-homework-value"></div>
                         </div>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <div>
+                        <div class="form-row">
                             <div class="data-label" id="practice-content-label">Practice Content:</div>
-                            <div class="data-value" id="practice-content-value"></div>
+                            <div class="data-value preserve-whitespace" id="practice-content-value"></div>
                         </div>
                     </td>
                     <td colspan="2">
                         <div>
                             <div class="data-label" id="parent-share-label">Parent Share:</div>
-                            <div class="data-value" id="parent-share-value"></div>
+                            <div class="data-value preserve-whitespace" id="parent-share-value"></div>
                         </div>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <div>
+                        <div class="form-row">
                             <div class="data-label" id="teacher-comments-label">Teacher Comments:</div>
-                            <div class="data-value" id="teacher-comments-value"></div>
+                            <div class="data-value preserve-whitespace" id="teacher-comments-value"></div>
                             <div class="signature-row">
                                 <div>老師：<span id="teacher-name-value"></span></div>
                             </div>
@@ -395,7 +401,7 @@
                     <td colspan="2">
                         <div>
                             <div class="data-label" id="parent-comments-label">Parent Comments:</div>
-                            <div class="data-value" id="parent-comments-value"></div>
+                            <div class="data-value preserve-whitespace" id="parent-comments-value"></div>
                             <div class="signature-row">
                                 <div>家長：<span id="parent-name-value"></span></div>
                             </div>

@@ -212,6 +212,12 @@
             min-height: 20px;
         }
         
+        /* Style to preserve line breaks in teacher data */
+        .preserve-whitespace {
+            white-space: pre-line; /* Preserves line breaks and collapses multiple whitespace */
+            word-wrap: break-word; /* Ensures long words don't overflow */
+        }
+        
         textarea {
             width: 100%;
             resize: vertical;
@@ -616,6 +622,15 @@
                 background-color: #e1f5fe;
             }
         }
+        
+        /* Make sure all weekly assignment fields preserve whitespace */
+        #weekly-song-display, 
+        #video-homework-display, 
+        #weekly-storybook-display, 
+        #life-homework-display {
+            white-space: pre-line;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -769,7 +784,7 @@
                 <td width="45%">
                     <div>
                         <div style="font-weight: bold;">今天我練習了什麼？</div>
-                        <div class="teacher-data" id="practice-content-display">No data yet</div>
+                        <div class="teacher-data preserve-whitespace" id="practice-content-display">No data yet</div>
                     </div>
                 </td>
                 <td colspan="2">
@@ -783,7 +798,7 @@
                 <td width="45%">
                     <div>
                         <div style="font-weight: bold;">老師分享：</div>
-                        <div class="teacher-data" id="teacher-comments-display">No data yet</div>
+                        <div class="teacher-data preserve-whitespace" id="teacher-comments-display">No data yet</div>
                         <div class="signature-row">
                             <div>老師：<span id="teacher-name">Teacher</span></div>
                         </div>
@@ -950,7 +965,10 @@
             document.getElementById('video-homework-display').textContent = formData.videohomework || 'Not provided';
             document.getElementById('weekly-storybook-display').textContent = formData.weeklystorybook || 'Not provided';
             document.getElementById('life-homework-display').textContent = formData.lifehomework || 'Not provided';
+            
+            // Use textContent for practice content to preserve line breaks
             document.getElementById('practice-content-display').textContent = formData.practicecontent || 'Not provided';
+            
             document.getElementById('teacher-comments-display').textContent = formData.teachercomments || 'Not provided';
         }
         
