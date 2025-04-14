@@ -428,6 +428,45 @@
         </div>
     </div>
     
+    <!-- Delete Form History Confirmation Modal -->
+    <div id="deleteFormHistoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Clear Form History</h2>
+                <span class="close" id="closeDeleteHistoryModal">&times;</span>
+            </div>
+            <div id="delete-history-modal-message" class="error-message"></div>
+            <div class="confirm-delete-message">
+                <p>Would you like to delete all history or just a specific week?</p>
+                <p><strong>Parent: </strong><span id="delete-history-parent-name"></span></p>
+                
+                <div style="margin-top: 20px;">
+                    <label style="display: block; margin-bottom: 10px;">
+                        <input type="radio" name="delete-option" value="all" checked>
+                        Delete all form history (cannot be undone)
+                    </label>
+                    <label style="display: block; margin-bottom: 10px;">
+                        <input type="radio" name="delete-option" value="specific">
+                        Delete a specific week's form
+                    </label>
+                    
+                    <div id="week-selector" style="margin-top: 15px; display: none;">
+                        <label for="week-to-delete" style="display: block; margin-bottom: 5px;">
+                            Select week to delete:
+                        </label>
+                        <select id="week-to-delete" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                            <option value="">Loading weeks...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button class="btn" style="background-color: #757575; color: white;" id="cancel-delete-history-btn">Cancel</button>
+                <button class="btn" style="background-color: #f44336; color: white;" id="confirm-delete-history-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+    
     <div class="header">
         <div class="header-left">
             <div class="logo-container">
@@ -620,6 +659,27 @@
 
             document.getElementById('closeHistoryModal').addEventListener('click', () => {
                 document.getElementById('templateHistoryModal').style.display = 'none';
+            });
+
+            // Close delete form history modal
+            document.getElementById('closeDeleteHistoryModal').addEventListener('click', () => {
+                document.getElementById('deleteFormHistoryModal').style.display = 'none';
+            });
+            
+            document.getElementById('cancel-delete-history-btn').addEventListener('click', () => {
+                document.getElementById('deleteFormHistoryModal').style.display = 'none';
+            });
+
+            // Show/hide week selector based on radio button selection
+            document.querySelectorAll('input[name="delete-option"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const weekSelector = document.getElementById('week-selector');
+                    if (this.value === 'specific') {
+                        weekSelector.style.display = 'block';
+                    } else {
+                        weekSelector.style.display = 'none';
+                    }
+                });
             });
         }
         
@@ -917,9 +977,16 @@
                     try {
                         // Get form status for this week
                         const form = await supabaseAuth.getParentForm(parent.id);
-                        console.log('Form for parent:', parent.id, form);
+                        
+                        // Get the parent's form history count
+                        const formHistory = await supabaseAuth.getFormHistory(parent.id);
+                        const formCount = formHistory ? formHistory.length : 0;
+                        
+                        console.log('Parent:', parent.id, 'Form:', form, 'History count:', formCount);
+                        
                         const formStatus = {
                             submitted: form ? true : false,
+                            hasHistory: formCount > 0,
                             teacherUpdated: form && (
                                 form.teachercomments || 
                                 form.weeklysong || 
@@ -1000,11 +1067,30 @@
                             // Redirect to form history page
                             window.location.href = 'form-history.html';
                         };
+
+                        // Create clear form history button
+                        const clearHistoryButton = document.createElement('button');
+                        clearHistoryButton.className = 'btn';
+                        clearHistoryButton.style.backgroundColor = '#ff9800';
+                        clearHistoryButton.style.color = 'white';
+                        clearHistoryButton.textContent = 'Clear History';
+                        clearHistoryButton.disabled = !formStatus.hasHistory;
+                        clearHistoryButton.style.opacity = formStatus.hasHistory ? '1' : '0.5';
+                        clearHistoryButton.title = formStatus.hasHistory ? 'Clear all form history' : 'No form history to clear';
+                        
+                        if (formCount > 0) {
+                            clearHistoryButton.textContent = `Clear History (${formCount})`;
+                        }
+                        
+                        clearHistoryButton.onclick = function() {
+                            showDeleteHistoryConfirmation(parent.id, getParentName(parent));
+                        };
                         
                         // Add buttons to action buttons
                         actionButtons.appendChild(fillFormButton);
-                        actionButtons.appendChild(removeButton);
                         actionButtons.appendChild(viewDetailsButton);
+                        actionButtons.appendChild(clearHistoryButton);
+                        actionButtons.appendChild(removeButton);
                         
                         // Add all elements to parent card
                         parentCard.appendChild(parentInfo);
@@ -1307,6 +1393,113 @@
                 showError('Error: ' + error.message);
             } finally {
                 // Ensure loading indicator is hidden
+                showLoading(false);
+            }
+        }
+
+        // Show delete form history confirmation modal
+        async function showDeleteHistoryConfirmation(parentId, parentName) {
+            try {
+                // Store parent ID and name
+                window.parentHistoryToDeleteId = parentId;
+                window.parentHistoryToDeleteName = parentName;
+                
+                // Reset radio buttons to default
+                document.querySelector('input[name="delete-option"][value="all"]').checked = true;
+                document.getElementById('week-selector').style.display = 'none';
+                
+                // Update confirmation message
+                document.getElementById('delete-history-parent-name').textContent = parentName;
+                
+                // Get form history for the parent
+                const formHistory = await supabaseAuth.getFormHistory(parentId);
+                
+                // Populate week selector dropdown
+                const weekSelector = document.getElementById('week-to-delete');
+                weekSelector.innerHTML = '';
+                
+                if (formHistory && formHistory.length > 0) {
+                    // Sort by week_start in descending order (most recent first)
+                    formHistory.sort((a, b) => new Date(b.week_start) - new Date(a.week_start));
+                    
+                    // Add each week as an option
+                    formHistory.forEach(form => {
+                        const weekStart = new Date(form.week_start);
+                        const formattedDate = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+                        const displayDate = formatDate(form.week_start);
+                        
+                        const option = document.createElement('option');
+                        option.value = formattedDate;
+                        option.textContent = `Week of ${displayDate}`;
+                        
+                        // Add additional info if available
+                        if (form.year && form.month && form.day) {
+                            option.textContent += ` (${form.year}-${form.month}-${form.day})`;
+                        }
+                        
+                        weekSelector.appendChild(option);
+                    });
+                } else {
+                    const option = document.createElement('option');
+                    option.value = "";
+                    option.textContent = "No forms found";
+                    weekSelector.appendChild(option);
+                }
+                
+                // Show modal
+                document.getElementById('deleteFormHistoryModal').style.display = 'block';
+                
+                // Set up confirm button
+                document.getElementById('confirm-delete-history-btn').onclick = confirmDeleteParentHistory;
+            } catch (error) {
+                console.error('Error preparing history deletion modal:', error);
+                showError('Error loading form history: ' + error.message);
+            }
+        }
+        
+        // Confirm parent form history deletion
+        async function confirmDeleteParentHistory() {
+            try {
+                if (!window.parentHistoryToDeleteId) return;
+                
+                showLoading(true);
+                
+                // Get selected deletion option
+                const deleteOption = document.querySelector('input[name="delete-option"]:checked').value;
+                
+                if (deleteOption === 'all') {
+                    // Delete all form history
+                    await supabaseAuth.deleteParentFormHistory(window.parentHistoryToDeleteId);
+                    showSuccess(`All form history for "${window.parentHistoryToDeleteName}" has been cleared`);
+                } else {
+                    // Delete specific week's form
+                    const weekToDelete = document.getElementById('week-to-delete').value;
+                    
+                    if (!weekToDelete) {
+                        throw new Error('Please select a week to delete');
+                    }
+                    
+                    await supabaseAuth.deleteParentFormForWeek(window.parentHistoryToDeleteId, weekToDelete);
+                    showSuccess(`Form for week of ${formatDate(weekToDelete)} has been deleted for "${window.parentHistoryToDeleteName}"`);
+                }
+                
+                // Close modal
+                document.getElementById('deleteFormHistoryModal').style.display = 'none';
+                
+                // Reset stored data
+                window.parentHistoryToDeleteId = null;
+                window.parentHistoryToDeleteName = null;
+                
+                // Reload parents list
+                setTimeout(async () => {
+                    await loadParents();
+                    showLoading(false);
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error deleting form history:', error);
+                document.getElementById('delete-history-modal-message').textContent = 'Error: ' + error.message;
+                document.getElementById('delete-history-modal-message').style.display = 'block';
                 showLoading(false);
             }
         }

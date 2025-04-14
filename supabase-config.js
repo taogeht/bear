@@ -811,6 +811,62 @@ const supabaseAuth = {
         }
     },
     
+    // Delete all form history for a specific parent
+    deleteParentFormHistory: async function(parentId) {
+        try {
+            if (!parentId) throw new Error('Parent ID is required');
+            
+            const supabase = await this.getSupabaseClient();
+            console.log(`Deleting form history for parent ID: ${parentId}`);
+            
+            // Delete all forms associated with this parent
+            const { error } = await supabase
+                .from('forms')
+                .delete()
+                .eq('parent_id', parentId);
+            
+            if (error) {
+                console.error('Error deleting form history:', error);
+                throw error;
+            }
+            
+            console.log(`Successfully deleted form history for parent ID: ${parentId}`);
+            return { success: true };
+        } catch (error) {
+            console.error('Error in deleteParentFormHistory function:', error);
+            throw error;
+        }
+    },
+    
+    // Delete a specific week's form for a parent
+    deleteParentFormForWeek: async function(parentId, weekStart) {
+        try {
+            if (!parentId) throw new Error('Parent ID is required');
+            if (!weekStart) throw new Error('Week start date is required');
+            
+            const supabase = await this.getSupabaseClient();
+            console.log(`Deleting form for parent ID: ${parentId} and week: ${weekStart}`);
+            
+            // Delete the specific form
+            const { error } = await supabase
+                .from('forms')
+                .delete()
+                .eq('parent_id', parentId)
+                .eq('week_start', weekStart);
+            
+            if (error) {
+                console.error('Error deleting form for week:', error);
+                throw error;
+            }
+            
+            console.log(`Successfully deleted form for parent ID: ${parentId} and week: ${weekStart}`);
+            return { success: true };
+        } catch (error) {
+            console.error('Error in deleteParentFormForWeek function:', error);
+            throw error;
+        }
+    },
+    
     // Get specific form by ID
     getFormById: async function(formId) {
         try {
