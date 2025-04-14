@@ -195,7 +195,7 @@
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
-                const name = document.getElementById('name').value;
+                const name = document.getElementById('name').value.trim();
                 const password = document.getElementById('password').value;
                 
                 if (!name || !password) {

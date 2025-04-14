@@ -52,6 +52,11 @@ const supabaseAuth = {
     // Login functions
     loginParent: async function(name, password) {
         try {
+            // --- ADDED: Trim whitespace from name input ---
+            if (typeof name === 'string') {
+                name = name.trim();
+            }
+
             const supabase = await this.getSupabaseClient();
             let parentData;
             let parentError;
@@ -195,16 +200,46 @@ const supabaseAuth = {
                     
                     teacherData = response.data;
                     teacherError = response.error;
+
+                    // --- ADDED: Password verification for fallback ---
+                    if (teacherData) {
+                        // Check if the provided password matches the stored one
+                        if (teacherData.password !== password) {
+                            console.log('Fallback check: Password mismatch.');
+                            // Set teacherData to null to trigger the error below
+                            teacherData = null; 
+                            // Throw a specific error for clarity
+                            throw new Error('Invalid email or password.'); 
+                        } else {
+                            console.log('Fallback check: Password matches.');
+                            // Password matches, proceed with this teacherData
+                            teacherError = null; // Clear any previous error like "no rows found"
+                        }
+                    } else {
+                        // Teacher not found even in fallback
+                        console.log('Fallback check: Teacher not found.');
+                        // Let the existing error handling below catch this
+                        if (teacherError && teacherError.code !== 'PGRST116') {
+                             // If there was a real DB error (not just 'not found')
+                             throw teacherError; 
+                        } else {
+                            // Ensure we throw a user-friendly error if not found
+                            throw new Error('Invalid email or password.');
+                        }
+                    }
+                    // --- END ADDED verification ---
                 }
             }
             
-            if (teacherError) {
-                console.error('Supabase error:', teacherError);
+            if (teacherError && teacherError.code !== 'PGRST116') {
+                // Handle potential errors from the initial UUID check or other issues
+                console.error('Supabase error before final check:', teacherError);
                 throw teacherError;
             }
             
             if (!teacherData) {
-                throw new Error('Teacher not found.');
+                // This will now catch cases where Auth failed AND fallback failed (wrong password or not found)
+                throw new Error('Invalid email or password.');
             }
             
             // Create user session
@@ -1124,6 +1159,136 @@ const supabaseAuth = {
             throw error;
         }
     },
+
+    // --- ADDED: Functions for Daily Practice Content ---
+
+    // Get practice content for a specific date
+    getDailyPracticeContent: async function(date) {
+        if (!date) throw new Error('Date is required');
+        
+        try {
+            const supabase = await this.getSupabaseClient();
+            console.log('Getting daily practice content for date:', date);
+            
+            const { data, error } = await supabase
+                .from('daily_practice') // New table name
+                .select('content')
+                .eq('practice_date', date)
+                .maybeSingle(); // Use maybeSingle to return null if not found, instead of erroring
+            
+            if (error) {
+                console.error('Error retrieving daily practice content:', error);
+                throw error; // Re-throw actual DB errors
+            }
+            
+            console.log('Content found:', data ? data.content : null);
+            return data ? data.content : null; // Return content string or null
+        } catch (error) {
+            console.error('Error in getDailyPracticeContent:', error);
+            throw error;
+        }
+    },
+
+    // Save (Upsert) practice content for a specific date
+    saveDailyPracticeContent: async function(date, content) {
+        if (!date) throw new Error('Date is required');
+        // Allow empty string for content, but maybe check for null/undefined if needed
+        // if (content === null || content === undefined) throw new Error('Content is required');
+        
+        try {
+            const supabase = await this.getSupabaseClient();
+            console.log(`Upserting daily practice content for ${date}`);
+            
+            const dataToSave = {
+                practice_date: date,
+                content: content,
+                updated_at: new Date().toISOString()
+            };
+
+            // Upsert based on the unique practice_date
+            const { data, error } = await supabase
+                .from('daily_practice') 
+                .upsert(dataToSave, { onConflict: 'practice_date' })
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Error upserting daily practice content:', error);
+                throw error;
+            }
+            
+            console.log('Daily practice content saved:', data);
+            return data;
+        } catch (error) {
+            console.error('Error in saveDailyPracticeContent:', error);
+            throw error;
+        }
+    },
+
+    // Apply daily practice content to all relevant parent forms
+    applyDailyPracticeContent: async function(date, content) {
+        if (!date) throw new Error('Date is required');
+
+        try {
+            console.log(`Applying daily practice content for ${date}`);
+            showLoading(true); // Assuming showLoading is accessible or defined globally
+
+            // Step 1: Save the canonical daily content
+            await this.saveDailyPracticeContent(date, content);
+            console.log('Canonical daily content saved.');
+
+            // Step 2: Calculate the week_start for the given practice_date
+            let weekStart;
+            try {
+                const practiceDateObj = new Date(date + 'T00:00:00Z'); // Treat date as UTC to avoid timezone issues
+                const day = practiceDateObj.getUTCDay(); // 0 = Sunday, 1 = Monday
+                const diff = practiceDateObj.getUTCDate() - (day === 0 ? 6 : day - 1); // Adjust for Sunday
+                const weekStartObj = new Date(practiceDateObj.setUTCDate(diff));
+                weekStart = weekStartObj.toISOString().split('T')[0];
+                console.log(`Calculated week_start: ${weekStart} for practice_date: ${date}`);
+            } catch (dateError) {
+                console.error('Error calculating week_start:', dateError);
+                throw new Error('Invalid date format provided.');
+            }
+
+            // Step 3: Get all current parent IDs
+            const parents = await this.getParents(); // Reuse existing function
+            const parentIds = parents.map(p => p.id);
+
+            if (!parentIds || parentIds.length === 0) {
+                console.log('No parents found, skipping update to forms table.');
+                showLoading(false);
+                return { success: true, message: 'Daily content saved, but no parents found to apply it to.' };
+            }
+            console.log(`Found ${parentIds.length} parents to update.`);
+
+            // Step 4: Update the 'practicecontent' in the 'forms' table for relevant parents and week_start
+            const supabase = await this.getSupabaseClient();
+            console.log(`Updating forms table for week_start ${weekStart} and ${parentIds.length} parents.`);
+            
+            const { count, error: updateError } = await supabase
+                .from('forms')
+                .update({ practicecontent: content, updated_at: new Date().toISOString() })
+                .eq('week_start', weekStart)
+                .in('parent_id', parentIds);
+
+            if (updateError) {
+                console.error('Error updating forms table:', updateError);
+                throw updateError;
+            }
+
+            console.log(`Successfully updated practicecontent for ${count !== null ? count : 'an unknown number of'} forms.`);
+            showLoading(false);
+            return { success: true, updatedCount: count };
+
+        } catch (error) {
+            console.error('Error in applyDailyPracticeContent:', error);
+            if (typeof showLoading === 'function') showLoading(false);
+            throw error;
+        }
+    }
+
+    // --- END ADDED Daily Practice Content Functions ---
 };
 
 // Set up the global Supabase instance
