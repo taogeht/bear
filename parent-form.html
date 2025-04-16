@@ -377,8 +377,24 @@
             
             .date-fields {
                 margin-top: 10px;
-                width: 100%;
                 justify-content: space-between;
+                gap: 5px;
+                width: 100%;
+            }
+            
+            .date-field {
+                flex-shrink: 1;
+            }
+            
+            /* Reduce size of data boxes within date fields on mobile */
+            .date-field .teacher-data {
+                padding: 16px 18px; /* Slightly increased padding */
+                font-size: 25px;  /* Slightly increased font size */
+                min-width: auto; /* Override any desktop min-width */
+            }
+            
+            .date-field span:first-child {
+                margin-right: 3px;
             }
             
             /* Mobile-specific emoji positioning */
